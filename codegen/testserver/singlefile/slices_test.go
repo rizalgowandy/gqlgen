@@ -4,15 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestSlices(t *testing.T) {
 	resolvers := &Stub{}
 
-	c := client.New(handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers})))
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
+	c := client.New(srv)
 
 	t.Run("nulls vs empty slices", func(t *testing.T) {
 		resolvers.QueryResolver.Slices = func(ctx context.Context) (slices *Slices, e error) {

@@ -5,7 +5,9 @@ package followschema
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -19,113 +21,378 @@ import (
 
 // endregion ***************************** args.gotpl *****************************
 
-// region    ************************** directives.gotpl **************************
-
-// endregion ************************** directives.gotpl **************************
-
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _MapStringInterfaceType_a(ctx context.Context, field graphql.CollectedField, obj map[string]interface{}) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "MapStringInterfaceType",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		switch v := obj["a"].(type) {
-		case *string:
-			return v, nil
-		case string:
-			return &v, nil
-		case nil:
-			return (*string)(nil), nil
-		default:
-			return nil, fmt.Errorf("unexpected type %T for field %s", v, "a")
-		}
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+func (ec *executionContext) _MapNested_value(ctx context.Context, field graphql.CollectedField, obj *MapNested) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MapNested_value(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v CustomScalar) graphql.Marshaler {
+			return ec.marshalNCustomScalar2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MapNested_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MapNested", field, false, false, "CustomScalar")
 }
 
-func (ec *executionContext) _MapStringInterfaceType_b(ctx context.Context, field graphql.CollectedField, obj map[string]interface{}) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
+func (ec *executionContext) _MapStringInterfaceType_a(ctx context.Context, field graphql.CollectedField, obj map[string]any) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MapStringInterfaceType_a(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			switch v := obj["a"].(type) {
+			case *string:
+				return v, nil
+			case string:
+				return &v, nil
+			case nil:
+				return (*string)(nil), nil
+			default:
+				return nil, fmt.Errorf("unexpected type %T for field %s", v, "a")
+			}
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MapStringInterfaceType_a(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MapStringInterfaceType", field, false, false, "String")
+}
+
+func (ec *executionContext) _MapStringInterfaceType_b(ctx context.Context, field graphql.CollectedField, obj map[string]any) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MapStringInterfaceType_b(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			switch v := obj["b"].(type) {
+			case *int:
+				return v, nil
+			case int:
+				return &v, nil
+			case nil:
+				return (*int)(nil), nil
+			default:
+				return nil, fmt.Errorf("unexpected type %T for field %s", v, "b")
+			}
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MapStringInterfaceType_b(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MapStringInterfaceType", field, false, false, "Int")
+}
+
+func (ec *executionContext) _MapStringInterfaceType_c(ctx context.Context, field graphql.CollectedField, obj map[string]any) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MapStringInterfaceType_c(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			switch v := obj["c"].(type) {
+			case *CustomScalar:
+				return v, nil
+			case CustomScalar:
+				return &v, nil
+			case nil:
+				return (*CustomScalar)(nil), nil
+			default:
+				return nil, fmt.Errorf("unexpected type %T for field %s", v, "c")
+			}
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *CustomScalar) graphql.Marshaler {
+			return ec.marshalOCustomScalar2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MapStringInterfaceType_c(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MapStringInterfaceType", field, false, false, "CustomScalar")
+}
+
+func (ec *executionContext) _MapStringInterfaceType_nested(ctx context.Context, field graphql.CollectedField, obj map[string]any) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MapStringInterfaceType_nested(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			switch v := obj["nested"].(type) {
+			case *MapNested:
+				return v, nil
+			case MapNested:
+				return &v, nil
+			case nil:
+				return (*MapNested)(nil), nil
+			default:
+				return nil, fmt.Errorf("unexpected type %T for field %s", v, "nested")
+			}
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *MapNested) graphql.Marshaler {
+			return ec.marshalOMapNested2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐMapNested(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MapStringInterfaceType_nested(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
 		Object:     "MapStringInterfaceType",
 		Field:      field,
-		Args:       nil,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MapNested(ctx, field)
+		},
 	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		switch v := obj["b"].(type) {
-		case *int:
-			return v, nil
-		case int:
-			return &v, nil
-		case nil:
-			return (*int)(nil), nil
-		default:
-			return nil, fmt.Errorf("unexpected type %T for field %s", v, "b")
-		}
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*int)
-	fc.Result = res
-	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+	return fc, nil
 }
 
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputNestedMapInput(ctx context.Context, obj interface{}) (NestedMapInput, error) {
-	var it NestedMapInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputMapNestedInput(ctx context.Context, obj any) (MapNested, error) {
+	var it MapNested
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	for k, v := range asMap {
+	fieldsInOrder := [...]string{"value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
 		switch k {
-		case "map":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
-			it.Map, err = ec.unmarshalOMapStringInterfaceInput2map(ctx, v)
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNCustomScalar2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Value = data
 		}
 	}
-
 	return it, nil
+}
+
+// UnmarshalMapNestedInput unmarshals raw into the MapNestedInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalMapNestedInput(ctx context.Context, raw any) (MapNested, error) {
+	var out MapNested
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "MapNestedInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputMapNestedMapSliceInput(ctx context.Context, obj any) (map[string]any, error) {
+	var it map[string]any
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "recurse"}
+	it = make(map[string]any, len(asMap))
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["name"] = data
+		case "recurse":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("recurse"))
+			data, err := ec.unmarshalOMapNestedMapSliceInput2ᚕmapᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["recurse"] = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalMapNestedMapSliceInput unmarshals raw into the MapNestedMapSliceInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalMapNestedMapSliceInput(ctx context.Context, raw any) (map[string]any, error) {
+	var out map[string]any
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "MapNestedMapSliceInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputMapStringInterfaceInput(ctx context.Context, obj any) (map[string]any, error) {
+	var it map[string]any
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"a", "b", "c", "nested"}
+	it = make(map[string]any, len(asMap))
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "a":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("a"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["a"] = data
+		case "b":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("b"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["b"] = data
+		case "c":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("c"))
+			data, err := ec.unmarshalOCustomScalar2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["c"] = data
+		case "nested":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nested"))
+			data, err := ec.unmarshalOMapNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐMapNested(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it["nested"] = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalMapStringInterfaceInput unmarshals raw into the MapStringInterfaceInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalMapStringInterfaceInput(ctx context.Context, raw any) (map[string]any, error) {
+	var out map[string]any
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "MapStringInterfaceInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputNestedMapInput(ctx context.Context, obj any) (NestedMapInput, error) {
+	var it NestedMapInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"map"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "map":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
+			data, err := ec.unmarshalOMapStringInterfaceInput2map(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Map = data
+		}
+	}
+	return it, nil
+}
+
+// UnmarshalNestedMapInput unmarshals raw into the NestedMapInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalNestedMapInput(ctx context.Context, raw any) (NestedMapInput, error) {
+	var out NestedMapInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "NestedMapInput", raw, &out)
+	return out, err
 }
 
 // endregion **************************** input.gotpl *****************************
@@ -136,38 +403,84 @@ func (ec *executionContext) unmarshalInputNestedMapInput(ctx context.Context, ob
 
 // region    **************************** object.gotpl ****************************
 
+var mapNestedImplementors = []string{"MapNested"}
+
+func (ec *executionContext) _MapNested(ctx context.Context, sel ast.SelectionSet, obj *MapNested) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mapNestedImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MapNested")
+		case "value":
+			out.Values[i] = ec._MapNested_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var mapStringInterfaceTypeImplementors = []string{"MapStringInterfaceType"}
 
-func (ec *executionContext) _MapStringInterfaceType(ctx context.Context, sel ast.SelectionSet, obj map[string]interface{}) graphql.Marshaler {
+func (ec *executionContext) _MapStringInterfaceType(ctx context.Context, sel ast.SelectionSet, obj map[string]any) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, mapStringInterfaceTypeImplementors)
+
 	out := graphql.NewFieldSet(fields)
-	var invalids uint32
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("MapStringInterfaceType")
 		case "a":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._MapStringInterfaceType_a(ctx, field, obj)
+			out.Values[i] = ec._MapStringInterfaceType_a(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
 			}
-
-			out.Values[i] = innerFunc(ctx)
-
 		case "b":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._MapStringInterfaceType_b(ctx, field, obj)
+			out.Values[i] = ec._MapStringInterfaceType_b(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
 			}
-
-			out.Values[i] = innerFunc(ctx)
-
+		case "c":
+			out.Values[i] = ec._MapStringInterfaceType_c(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "nested":
+			out.Values[i] = ec._MapStringInterfaceType_nested(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
 	}
-	out.Dispatch()
-	if invalids > 0 {
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
 		return graphql.Null
 	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
 	return out
 }
 
@@ -175,21 +488,93 @@ func (ec *executionContext) _MapStringInterfaceType(ctx context.Context, sel ast
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalOMapStringInterfaceInput2map(ctx context.Context, v interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) unmarshalNCustomScalar2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx context.Context, v any) (CustomScalar, error) {
+	var res CustomScalar
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCustomScalar2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx context.Context, sel ast.SelectionSet, v CustomScalar) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMapNestedMapSliceInput2map(ctx context.Context, v any) (map[string]any, error) {
+	res, err := ec.unmarshalInputMapNestedMapSliceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOCustomScalar2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx context.Context, v any) (*CustomScalar, error) {
 	if v == nil {
 		return nil, nil
 	}
-	return v.(map[string]interface{}), nil
+	var res = new(CustomScalar)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOMapStringInterfaceType2map(ctx context.Context, sel ast.SelectionSet, v map[string]interface{}) graphql.Marshaler {
+func (ec *executionContext) marshalOCustomScalar2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐCustomScalar(ctx context.Context, sel ast.SelectionSet, v *CustomScalar) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) marshalOMapNested2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐMapNested(ctx context.Context, sel ast.SelectionSet, v *MapNested) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._MapNested(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOMapNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐMapNested(ctx context.Context, v any) (*MapNested, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputMapNestedInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOMapNestedMapSliceInput2map(ctx context.Context, v any) (map[string]any, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputMapNestedMapSliceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOMapNestedMapSliceInput2ᚕmapᚄ(ctx context.Context, v any) ([]map[string]any, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]map[string]any, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNMapNestedMapSliceInput2map(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOMapStringInterfaceInput2map(ctx context.Context, v any) (map[string]any, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputMapStringInterfaceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOMapStringInterfaceType2map(ctx context.Context, sel ast.SelectionSet, v map[string]any) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._MapStringInterfaceType(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalONestedMapInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedMapInput(ctx context.Context, v interface{}) (*NestedMapInput, error) {
+func (ec *executionContext) unmarshalONestedMapInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedMapInput(ctx context.Context, v any) (*NestedMapInput, error) {
 	if v == nil {
 		return nil, nil
 	}

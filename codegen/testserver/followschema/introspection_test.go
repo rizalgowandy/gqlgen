@@ -4,12 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/stretchr/testify/require"
 )
 
 func TestIntrospection(t *testing.T) {
@@ -20,19 +22,24 @@ func TestIntrospection(t *testing.T) {
 		srv.AddTransport(transport.POST{})
 		c := client.New(srv)
 
-		var resp interface{}
+		var resp any
 		err := c.Post(introspection.Query, &resp)
-		require.EqualError(t, err, "[{\"message\":\"introspection disabled\",\"path\":[\"__schema\"]}]")
+		require.EqualError(
+			t,
+			err,
+			"[{\"message\":\"introspection disabled\",\"path\":[\"__schema\"],\"locations\":[{\"line\":3,\"column\":3}]}]",
+		)
 	})
 
-	t.Run("enabled by default", func(t *testing.T) {
+	t.Run("enabled by adding extension", func(t *testing.T) {
 		resolvers := &Stub{}
 
-		c := client.New(handler.NewDefaultServer(
-			NewExecutableSchema(Config{Resolvers: resolvers}),
-		))
+		srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+		srv.AddTransport(transport.POST{})
+		srv.Use(extension.Introspection{})
+		c := client.New(srv)
 
-		var resp interface{}
+		var resp any
 		err := c.Post(introspection.Query, &resp)
 		require.NoError(t, err)
 
@@ -60,20 +67,92 @@ func TestIntrospection(t *testing.T) {
 			require.Equal(t, "id", resp.Type.Fields[0].Name)
 			require.Nil(t, resp.Type.Fields[0].DeprecationReason)
 		})
+
+		t.Run("chained interface possibleTypes", func(t *testing.T) {
+			var resp struct {
+				Type struct {
+					PossibleTypes []struct {
+						Name string
+					}
+				} `json:"__type"`
+			}
+
+			err := c.Post(`{ __type(name: "Animal") { possibleTypes { name } } }`, &resp)
+			require.NoError(t, err)
+
+			names := make([]string, len(resp.Type.PossibleTypes))
+			for i, pt := range resp.Type.PossibleTypes {
+				names[i] = pt.Name
+			}
+			require.Contains(t, names, "Dog")
+			require.Contains(t, names, "Cat")
+			// Horse implements Animal transitively via Mammalian
+			require.Contains(t, names, "Horse")
+		})
+
+		t.Run("deprecated directive on field arguments", func(t *testing.T) {
+			type arg struct {
+				Name              string
+				DeprecationReason *string
+			}
+			var resp struct {
+				Type struct {
+					Fields []struct {
+						Name    string
+						Args    []arg
+						AllArgs []arg
+					}
+				} `json:"__type"`
+			}
+
+			err := c.Post(`{ __type(name:"Query") { fields {
+				name
+				args { name deprecationReason }
+				allArgs: args(includeDeprecated: true) { name deprecationReason }
+			}}}`, &resp)
+			require.NoError(t, err)
+
+			var args, allArgs []arg
+			for _, f := range resp.Type.Fields {
+				if f.Name == "fieldWithDeprecatedArg" {
+					args, allArgs = f.Args, f.AllArgs
+					break
+				}
+			}
+
+			require.Equal(t, []arg{{Name: "newArg"}}, args,
+				"args leaves out deprecated arguments by default")
+
+			require.Len(t, allArgs, 2)
+			require.Equal(t, "oldArg", allArgs[0].Name)
+			require.NotNil(t, allArgs[0].DeprecationReason)
+			require.Equal(t, "old arg", *allArgs[0].DeprecationReason)
+
+			require.Equal(t, "newArg", allArgs[1].Name)
+			require.Nil(t, allArgs[1].DeprecationReason)
+		})
 	})
 
 	t.Run("disabled by middleware", func(t *testing.T) {
 		resolvers := &Stub{}
 
-		srv := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers}))
-		srv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
-			graphql.GetOperationContext(ctx).DisableIntrospection = true
-			return next(ctx)
-		})
+		srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+		srv.AddTransport(transport.POST{})
+		srv.Use(extension.Introspection{})
+		srv.AroundOperations(
+			func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+				graphql.GetOperationContext(ctx).DisableIntrospection = true
+				return next(ctx)
+			},
+		)
 		c := client.New(srv)
 
-		var resp interface{}
+		var resp any
 		err := c.Post(introspection.Query, &resp)
-		require.EqualError(t, err, "[{\"message\":\"introspection disabled\",\"path\":[\"__schema\"]}]")
+		require.EqualError(
+			t,
+			err,
+			"[{\"message\":\"introspection disabled\",\"path\":[\"__schema\"],\"locations\":[{\"line\":3,\"column\":3}]}]",
+		)
 	})
 }

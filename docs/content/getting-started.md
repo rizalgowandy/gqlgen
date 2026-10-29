@@ -24,27 +24,15 @@ cd gqlgen-todos
 go mod init github.com/[username]/gqlgen-todos
 ```
 
-Next, create a `tools.go` file and add gqlgen as a [tool dependency for your module](https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module).
+Next, add `github.com/99designs/gqlgen` to your project, as a [tool dependency](https://go.dev/doc/modules/managing-dependencies#tools).
 
-```go
-//go:build tools
-// +build tools
-
-package tools
-
-import (
-	_ "github.com/99designs/gqlgen"
-)
+```shell
+go get -tool github.com/99designs/gqlgen
 ```
 
-To automatically add the dependency to your `go.mod` run
+By default you'll be using the latest version of gqlgen, but if you want to specify a particular version you can use `go get` (replacing `VERSION` with the particular version desired)
 ```shell
-go mod tidy
-```
-
-If you want to specify a particular version of gqlgen, you can use `go get`. For example
-```shell
-go get -d github.com/99designs/gqlgen@v0.14.0
+go get -tool github.com/99designs/gqlgen@VERSION
 ```
 
 ## Building the server
@@ -52,7 +40,7 @@ go get -d github.com/99designs/gqlgen@v0.14.0
 ### Create the project skeleton
 
 ```shell
-go run github.com/99designs/gqlgen init
+go tool gqlgen init
 ```
 
 This will create our suggested package layout. You can modify these paths in gqlgen.yml if you need to.
@@ -133,13 +121,14 @@ type Resolver struct{
 }
 ```
 
-Returning to `graph/schema.resolvers.go`, let's implement the bodies of those automatically generated resolver functions.  For `CreateTodo`, we'll use `math.rand` to simply return a todo with a randomly generated ID and store that in the in-memory todos list --- in a real app, you're likely to use a database or some other backend service.
+Returning to `graph/schema.resolvers.go`, let's implement the bodies of those automatically generated resolver functions.  For `CreateTodo`, we'll use the [`crypto.rand` package](https://pkg.go.dev/crypto/rand#Int) to simply return a todo with a randomly generated ID and store that in the in-memory todos list --- in a real app, you're likely to use a database or some other backend service.
 
 ```go
 func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
+	randNumber, _ := rand.Int(rand.Reader, big.NewInt(100))
 	todo := &model.Todo{
-		Text:   input.Text,
-		ID:     fmt.Sprintf("T%d", rand.Int()),
+		Text: input.Text,
+		ID:   fmt.Sprintf("T%d", randNumber),
 		User: &model.User{ID: input.UserID, Name: "user " + input.UserID},
 	}
 	r.todos = append(r.todos, todo)
@@ -187,11 +176,44 @@ query findTodos {
 
 ### Don't eagerly fetch the user
 
-This example is great, but in the real world fetching most objects is expensive. We dont want to load the User on the
+This example is great, but in the real world fetching most objects is expensive. We don't want to load the User on the
 todo unless the user actually asked for it. So lets replace the generated `Todo` model with something slightly more
 realistic.
 
-Create a new file called `graph/model/todo.go`
+First let's enable `autobind`, allowing gqlgen to use your custom models if it can find them rather than generating them. We do this by uncommenting the `autobind` config line in `gqlgen.yml`:
+
+```yml
+# gqlgen will search for any type names in the schema in these go packages
+# if they match it will use them, otherwise it will generate them.
+autobind:
+ - "github.com/[username]/gqlgen-todos/graph/model"
+```
+
+And add `Todo` fields resolver config in `gqlgen.yml` to generate resolver for `user` field
+```yml
+# This section declares type mapping between the GraphQL and go type systems
+#
+# The first line in each type will be used as defaults for resolver arguments and
+# modelgen, the others will be allowed when binding to fields. Configure them to
+# your liking
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int32
+  Todo:
+    fields:
+      user:
+        resolver: true
+```
+
+Next, create a new file called `graph/model/todo.go`
+
 ```go
 package model
 
@@ -199,23 +221,21 @@ type Todo struct {
 	ID     string `json:"id"`
 	Text   string `json:"text"`
 	Done   bool   `json:"done"`
-	UserID string `json:"user"`
+	UserID string `json:"userId"`
+	User   *User  `json:"user"`
 }
 ```
 
-> Note
->
-> By default gqlgen will use any models in the model directory that match on name, this can be configured in `gqlgen.yml`.
-
-And run `go run github.com/99designs/gqlgen generate`.
+And run `go tool gqlgen generate`.
 
 Now if we look in `graph/schema.resolvers.go` we can see a new resolver, lets implement it and fix `CreateTodo`.
 ```go
 func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
+	randNumber, _ := rand.Int(rand.Reader, big.NewInt(100))
 	todo := &model.Todo{
 		Text:   input.Text,
-		ID:     fmt.Sprintf("T%d", rand.Int()),
-		UserID: input.UserID, // fix this line
+		ID:     fmt.Sprintf("T%d", randNumber),
+		UserID: input.UserID,
 	}
 	r.todos = append(r.todos, todo)
 	return todo, nil
@@ -231,7 +251,7 @@ func (r *todoResolver) User(ctx context.Context, obj *model.Todo) (*model.User, 
 At the top of our `resolver.go`, between `package` and `import`, add the following line:
 
 ```go
-//go:generate go run github.com/99designs/gqlgen generate
+//go:generate go tool gqlgen generate
 ```
 
 This magic comment tells `go generate` what command to run when we want to regenerate our code. To run go generate recursively over your entire project, use this command:

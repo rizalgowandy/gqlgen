@@ -1,27 +1,46 @@
 package graphql
 
 import (
-	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestString(t *testing.T) {
-	assert.Equal(t, `"hello"`, doStrMarshal("hello"))
-	assert.Equal(t, `"he\tllo"`, doStrMarshal("he\tllo"))
-	assert.Equal(t, `"he\tllo"`, doStrMarshal("he	llo"))
-	assert.Equal(t, `"he\nllo"`, doStrMarshal("he\nllo"))
-	assert.Equal(t, `"he\r\nllo"`, doStrMarshal("he\r\nllo"))
-	assert.Equal(t, `"he\\llo"`, doStrMarshal(`he\llo`))
-	assert.Equal(t, `"quotes\"nested\"in\"quotes\""`, doStrMarshal(`quotes"nested"in"quotes"`))
-	assert.Equal(t, `"\u0000"`, doStrMarshal("\u0000"))
-	assert.Equal(t, `"\u0000"`, doStrMarshal("\u0000"))
-	assert.Equal(t, "\"\U000fe4ed\"", doStrMarshal("\U000fe4ed"))
+	t.Run("marshal", func(t *testing.T) {
+		assert.Equal(t, `"hello"`, m2s(MarshalString("hello")))
+		assert.Equal(t, `"he\tllo"`, m2s(MarshalString("he\tllo")))
+		assert.Equal(t, `"he\tllo"`, m2s(MarshalString("he	llo")))
+		assert.Equal(t, `"he\nllo"`, m2s(MarshalString("he\nllo")))
+		assert.Equal(t, `"he\r\nllo"`, m2s(MarshalString("he\r\nllo")))
+		assert.Equal(t, `"he\\llo"`, m2s(MarshalString(`he\llo`)))
+		assert.Equal(
+			t,
+			`"quotes\"nested\"in\"quotes\""`,
+			m2s(MarshalString(`quotes"nested"in"quotes"`)),
+		)
+		assert.Equal(t, `"\u0000"`, m2s(MarshalString("\u0000")))
+		assert.Equal(t, `"\u0000"`, m2s(MarshalString("\u0000")))
+		assert.Equal(t, "\"\U000fe4ed\"", m2s(MarshalString("\U000fe4ed")))
+	})
+
+	t.Run("unmarshal", func(t *testing.T) {
+		assert.Equal(t, "123", mustUnmarshalString(t, "123"))
+		assert.Equal(t, "123", mustUnmarshalString(t, 123))
+		assert.Equal(t, "123", mustUnmarshalString(t, int64(123)))
+		assert.Equal(t, "123", mustUnmarshalString(t, float64(123)))
+		assert.Equal(t, "123", mustUnmarshalString(t, json.Number("123")))
+		assert.Equal(t, "true", mustUnmarshalString(t, true))
+		assert.Equal(t, "false", mustUnmarshalString(t, false))
+		assert.Empty(t, mustUnmarshalString(t, nil))
+	})
 }
 
-func doStrMarshal(s string) string {
-	var buf bytes.Buffer
-	MarshalString(s).MarshalGQL(&buf)
-	return buf.String()
+func mustUnmarshalString(t *testing.T, v any) string {
+	t.Helper()
+	res, err := UnmarshalString(v)
+	require.NoError(t, err)
+	return res
 }

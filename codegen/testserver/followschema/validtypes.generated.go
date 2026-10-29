@@ -4,8 +4,11 @@ package followschema
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -17,256 +20,229 @@ import (
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_ValidType_validArgs_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_ValidType_validArgs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["break"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("break"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "break",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["break"] = arg0
-	var arg1 string
-	if tmp, ok := rawArgs["default"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("default"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "default",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["default"] = arg1
-	var arg2 string
-	if tmp, ok := rawArgs["func"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("func"))
-		arg2, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "func",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["func"] = arg2
-	var arg3 string
-	if tmp, ok := rawArgs["interface"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("interface"))
-		arg3, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "interface",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["interface"] = arg3
-	var arg4 string
-	if tmp, ok := rawArgs["select"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("select"))
-		arg4, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "select",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["select"] = arg4
-	var arg5 string
-	if tmp, ok := rawArgs["case"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("case"))
-		arg5, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "case",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["case"] = arg5
-	var arg6 string
-	if tmp, ok := rawArgs["defer"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defer"))
-		arg6, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "defer",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["defer"] = arg6
-	var arg7 string
-	if tmp, ok := rawArgs["go"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("go"))
-		arg7, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "go",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["go"] = arg7
-	var arg8 string
-	if tmp, ok := rawArgs["map"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
-		arg8, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "map",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["map"] = arg8
-	var arg9 string
-	if tmp, ok := rawArgs["struct"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("struct"))
-		arg9, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg9, err := graphql.ProcessArgField(ctx, rawArgs, "struct",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["struct"] = arg9
-	var arg10 string
-	if tmp, ok := rawArgs["chan"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("chan"))
-		arg10, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg10, err := graphql.ProcessArgField(ctx, rawArgs, "chan",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["chan"] = arg10
-	var arg11 string
-	if tmp, ok := rawArgs["else"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("else"))
-		arg11, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg11, err := graphql.ProcessArgField(ctx, rawArgs, "else",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["else"] = arg11
-	var arg12 string
-	if tmp, ok := rawArgs["goto"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("goto"))
-		arg12, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg12, err := graphql.ProcessArgField(ctx, rawArgs, "goto",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["goto"] = arg12
-	var arg13 string
-	if tmp, ok := rawArgs["package"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("package"))
-		arg13, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg13, err := graphql.ProcessArgField(ctx, rawArgs, "package",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["package"] = arg13
-	var arg14 string
-	if tmp, ok := rawArgs["switch"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("switch"))
-		arg14, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg14, err := graphql.ProcessArgField(ctx, rawArgs, "switch",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["switch"] = arg14
-	var arg15 string
-	if tmp, ok := rawArgs["const"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("const"))
-		arg15, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg15, err := graphql.ProcessArgField(ctx, rawArgs, "const",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["const"] = arg15
-	var arg16 string
-	if tmp, ok := rawArgs["fallthrough"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fallthrough"))
-		arg16, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg16, err := graphql.ProcessArgField(ctx, rawArgs, "fallthrough",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["fallthrough"] = arg16
-	var arg17 string
-	if tmp, ok := rawArgs["if"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("if"))
-		arg17, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg17, err := graphql.ProcessArgField(ctx, rawArgs, "if",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["if"] = arg17
-	var arg18 string
-	if tmp, ok := rawArgs["range"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("range"))
-		arg18, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg18, err := graphql.ProcessArgField(ctx, rawArgs, "range",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["range"] = arg18
-	var arg19 string
-	if tmp, ok := rawArgs["type"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-		arg19, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg19, err := graphql.ProcessArgField(ctx, rawArgs, "type",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["type"] = arg19
-	var arg20 string
-	if tmp, ok := rawArgs["continue"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("continue"))
-		arg20, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg20, err := graphql.ProcessArgField(ctx, rawArgs, "continue",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["continue"] = arg20
-	var arg21 string
-	if tmp, ok := rawArgs["for"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("for"))
-		arg21, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg21, err := graphql.ProcessArgField(ctx, rawArgs, "for",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["for"] = arg21
-	var arg22 string
-	if tmp, ok := rawArgs["import"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("import"))
-		arg22, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg22, err := graphql.ProcessArgField(ctx, rawArgs, "import",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["import"] = arg22
-	var arg23 string
-	if tmp, ok := rawArgs["return"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("return"))
-		arg23, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg23, err := graphql.ProcessArgField(ctx, rawArgs, "return",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["return"] = arg23
-	var arg24 string
-	if tmp, ok := rawArgs["var"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("var"))
-		arg24, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg24, err := graphql.ProcessArgField(ctx, rawArgs, "var",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["var"] = arg24
-	var arg25 string
-	if tmp, ok := rawArgs["_"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("_"))
-		arg25, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg25, err := graphql.ProcessArgField(ctx, rawArgs, "_",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["_"] = arg25
 	return args, nil
 }
 
-func (ec *executionContext) field_ValidType_validInputKeywords_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_ValidType_validInputKeywords_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 *ValidInput
-	if tmp, ok := rawArgs["input"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalOValidInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐValidInput(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (*ValidInput, error) {
+			return ec.unmarshalOValidInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐValidInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
@@ -274,437 +250,417 @@ func (ec *executionContext) field_ValidType_validInputKeywords_args(ctx context.
 
 // endregion ***************************** args.gotpl *****************************
 
-// region    ************************** directives.gotpl **************************
-
-// endregion ************************** directives.gotpl **************************
-
 // region    **************************** field.gotpl *****************************
 
 func (ec *executionContext) _Content_Post_foo(ctx context.Context, field graphql.CollectedField, obj *ContentPost) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Content_Post",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Foo, nil
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Content_Post_foo(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Foo, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Content_Post_foo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Content_Post", field, false, false, "String")
 }
 
 func (ec *executionContext) _Content_User_foo(ctx context.Context, field graphql.CollectedField, obj *ContentUser) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Content_User",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Foo, nil
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Content_User_foo(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Foo, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Content_User_foo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Content_User", field, false, false, "String")
 }
 
 func (ec *executionContext) _ValidType_differentCase(ctx context.Context, field graphql.CollectedField, obj *ValidType) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "ValidType",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.DifferentCase, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ValidType_differentCase(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DifferentCase, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ValidType_differentCase(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ValidType", field, false, false, "String")
 }
 
 func (ec *executionContext) _ValidType_different_case(ctx context.Context, field graphql.CollectedField, obj *ValidType) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "ValidType",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.DifferentCaseOld, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ValidType_different_case(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DifferentCaseOld, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ValidType_different_case(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ValidType", field, false, false, "String")
 }
 
 func (ec *executionContext) _ValidType_validInputKeywords(ctx context.Context, field graphql.CollectedField, obj *ValidType) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ValidType_validInputKeywords(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ValidInputKeywords, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ValidType_validInputKeywords(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
 		Object:     "ValidType",
 		Field:      field,
-		Args:       nil,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_ValidType_validInputKeywords_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ValidInputKeywords, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
 		}
-		return graphql.Null
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_ValidType_validInputKeywords_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+	return fc, nil
 }
 
 func (ec *executionContext) _ValidType_validArgs(ctx context.Context, field graphql.CollectedField, obj *ValidType) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ValidType_validArgs(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ValidArgs, nil
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			return ec._fieldMiddleware(ctx, obj, next)
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ValidType_validArgs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
 		Object:     "ValidType",
 		Field:      field,
-		Args:       nil,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_ValidType_validArgs_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ValidArgs, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
 		}
-		return graphql.Null
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_ValidType_validArgs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+	return fc, nil
 }
 
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputValidInput(ctx context.Context, obj interface{}) (ValidInput, error) {
+func (ec *executionContext) unmarshalInputValidInput(ctx context.Context, obj any) (ValidInput, error) {
 	var it ValidInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	for k, v := range asMap {
+	fieldsInOrder := [...]string{"break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct", "chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type", "continue", "for", "import", "return", "var", "_"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
 		switch k {
 		case "break":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("break"))
-			it.Break, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Break = data
 		case "default":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("default"))
-			it.Default, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Default = data
 		case "func":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("func"))
-			it.Func, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Func = data
 		case "interface":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("interface"))
-			it.Interface, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Interface = data
 		case "select":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("select"))
-			it.Select, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Select = data
 		case "case":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("case"))
-			it.Case, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Case = data
 		case "defer":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defer"))
-			it.Defer, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Defer = data
 		case "go":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("go"))
-			it.Go, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Go = data
 		case "map":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
-			it.Map, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Map = data
 		case "struct":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("struct"))
-			it.Struct, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Struct = data
 		case "chan":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("chan"))
-			it.Chan, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Chan = data
 		case "else":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("else"))
-			it.Else, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Else = data
 		case "goto":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("goto"))
-			it.Goto, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Goto = data
 		case "package":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("package"))
-			it.Package, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Package = data
 		case "switch":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("switch"))
-			it.Switch, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Switch = data
 		case "const":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("const"))
-			it.Const, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Const = data
 		case "fallthrough":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fallthrough"))
-			it.Fallthrough, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Fallthrough = data
 		case "if":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("if"))
-			it.If, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.If = data
 		case "range":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("range"))
-			it.Range, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Range = data
 		case "type":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			it.Type, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Type = data
 		case "continue":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("continue"))
-			it.Continue, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Continue = data
 		case "for":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("for"))
-			it.For, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.For = data
 		case "import":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("import"))
-			it.Import, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Import = data
 		case "return":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("return"))
-			it.Return, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Return = data
 		case "var":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("var"))
-			it.Var, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Var = data
 		case "_":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("_"))
-			it.Underscore, err = ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Underscore = data
 		}
 	}
-
 	return it, nil
+}
+
+// UnmarshalValidInput unmarshals raw into the ValidInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalValidInput(ctx context.Context, raw any) (ValidInput, error) {
+	var out ValidInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "ValidInput", raw, &out)
+	return out, err
 }
 
 // endregion **************************** input.gotpl *****************************
@@ -730,7 +686,11 @@ func (ec *executionContext) _Content_Child(ctx context.Context, sel ast.Selectio
 		}
 		return ec._Content_Post(ctx, sel, obj)
 	default:
-		panic(fmt.Errorf("unexpected type %T", obj))
+		if typedObj, ok := obj.(graphql.Marshaler); ok {
+			return typedObj
+		} else {
+			panic(fmt.Errorf("unexpected type %T; non-generated variants of Content_Child must implement graphql.Marshaler", obj))
+		}
 	}
 }
 
@@ -742,27 +702,32 @@ var content_PostImplementors = []string{"Content_Post", "Content_Child"}
 
 func (ec *executionContext) _Content_Post(ctx context.Context, sel ast.SelectionSet, obj *ContentPost) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, content_PostImplementors)
+
 	out := graphql.NewFieldSet(fields)
-	var invalids uint32
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Content_Post")
 		case "foo":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Content_Post_foo(ctx, field, obj)
+			out.Values[i] = ec._Content_Post_foo(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
 			}
-
-			out.Values[i] = innerFunc(ctx)
-
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
 	}
-	out.Dispatch()
-	if invalids > 0 {
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
 		return graphql.Null
 	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
 	return out
 }
 
@@ -770,27 +735,32 @@ var content_UserImplementors = []string{"Content_User", "Content_Child"}
 
 func (ec *executionContext) _Content_User(ctx context.Context, sel ast.SelectionSet, obj *ContentUser) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, content_UserImplementors)
+
 	out := graphql.NewFieldSet(fields)
-	var invalids uint32
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Content_User")
 		case "foo":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Content_User_foo(ctx, field, obj)
+			out.Values[i] = ec._Content_User_foo(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
 			}
-
-			out.Values[i] = innerFunc(ctx)
-
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
 	}
-	out.Dispatch()
-	if invalids > 0 {
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
 		return graphql.Null
 	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
 	return out
 }
 
@@ -798,60 +768,47 @@ var validTypeImplementors = []string{"ValidType"}
 
 func (ec *executionContext) _ValidType(ctx context.Context, sel ast.SelectionSet, obj *ValidType) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, validTypeImplementors)
+
 	out := graphql.NewFieldSet(fields)
-	var invalids uint32
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ValidType")
 		case "differentCase":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._ValidType_differentCase(ctx, field, obj)
-			}
-
-			out.Values[i] = innerFunc(ctx)
-
+			out.Values[i] = ec._ValidType_differentCase(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				out.Invalids++
 			}
 		case "different_case":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._ValidType_different_case(ctx, field, obj)
-			}
-
-			out.Values[i] = innerFunc(ctx)
-
+			out.Values[i] = ec._ValidType_different_case(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				out.Invalids++
 			}
 		case "validInputKeywords":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._ValidType_validInputKeywords(ctx, field, obj)
-			}
-
-			out.Values[i] = innerFunc(ctx)
-
+			out.Values[i] = ec._ValidType_validInputKeywords(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				out.Invalids++
 			}
 		case "validArgs":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._ValidType_validArgs(ctx, field, obj)
-			}
-
-			out.Values[i] = innerFunc(ctx)
-
+			out.Values[i] = ec._ValidType_validArgs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
 	}
-	out.Dispatch()
-	if invalids > 0 {
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
 		return graphql.Null
 	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
 	return out
 }
 
@@ -859,7 +816,7 @@ func (ec *executionContext) _ValidType(ctx context.Context, sel ast.SelectionSet
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalOValidInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐValidInput(ctx context.Context, v interface{}) (*ValidInput, error) {
+func (ec *executionContext) unmarshalOValidInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐValidInput(ctx context.Context, v any) (*ValidInput, error) {
 	if v == nil {
 		return nil, nil
 	}

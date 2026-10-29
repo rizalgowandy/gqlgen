@@ -49,13 +49,31 @@ Limiting query complexity is as simple as specifying it with the provided extens
 func main() {
 	c := Config{ Resolvers: &resolvers{} }
 
-	srv := handler.NewDefaultServer(blog.NewExecutableSchema(c))
+	srv := handler.New(blog.NewExecutableSchema(c))
+	// Server setup...
+
 	srv.Use(extension.FixedComplexityLimit(5)) // This line is key
+
 	r.Handle("/query", srv)
 }
 ```
 
 Now any query with complexity greater than 5 is rejected by the API. By default, each field and level of depth adds one to the overall query complexity. You can also use `extension.ComplexityLimit` to dynamically configure the complexity limit per request.
+
+To set a custom complexity value for scalars and enums, use `extension.FixedComplexityLimit` with the `WithFixedScalarValue` functional option:
+
+```go
+srv.Use(extension.FixedComplexityLimit(5, complexity.WithFixedScalarValue(0)))
+```
+You can also specify which fields to ignore with the `WithIgnoreFields` functional option. The expected argument is a set of the field names:
+
+```go
+ignore := map[string]struct{}{
+	"Query.foo": {}, // ignore top-level 'foo' field
+	"Item.name": {}, // ignore the 'name' field of the 'Item' object.
+}
+srv.Use(extension.FixedComplexityLimit(5, complexity.WithIgnoreFields(ignore)))
+```
 
 This helps, but we still have a problem: the `posts` and `related` fields, which return arrays, are much more expensive to resolve than the scalar `title` and `text` fields. However, the default complexity calculation weights them equally. It would make more sense to apply a higher cost to the array fields.
 
@@ -73,7 +91,8 @@ func main() {
 	c.Complexity.Query.Posts = countComplexity
 	c.Complexity.Post.Related = countComplexity
 
-	srv := handler.NewDefaultServer(blog.NewExecutableSchema(c))
+	srv := handler.New(blog.NewExecutableSchema(c))
+	srv.AddTransport(transport.POST{})
 	srv.Use(extension.FixedComplexityLimit(5))
 	http.Handle("/query", gqlHandler)
 }

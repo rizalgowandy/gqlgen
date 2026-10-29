@@ -5,6 +5,5 @@
 ### Minimal graphql.schema and models to reproduce
 
 ### versions
- - `gqlgen version`? 
+ - `go tool gqlgen version`?
  - `go version`?
- - dep or go modules?

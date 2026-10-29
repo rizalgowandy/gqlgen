@@ -77,8 +77,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/99designs/gqlgen/example/starwars"
+	"github.com/99designs/gqlgen/_examples/starwars"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi"
 )
@@ -88,7 +89,8 @@ func main() {
 
 	router.Use(auth.Middleware(db))
 
-	srv := handler.NewDefaultServer(starwars.NewExecutableSchema(starwars.NewResolver()))
+	srv := handler.New(starwars.NewExecutableSchema(starwars.NewResolver()))
+	srv.AddTransport(transport.POST{})
 	router.Handle("/", playground.Handler("Starwars", "/query"))
 	router.Handle("/query", srv)
 
@@ -116,38 +118,88 @@ func (r *queryResolver) Hero(ctx context.Context, episode Episode) (Character, e
 
 ### Websockets
 
-If you need access to the websocket init payload we can do the same thing with the WebsocketInitFunc:
+If you need access to the websocket init payload you can add your `InitFunc` in `AddTransport`.
+Your InitFunc implementation could then attempt to extract items from the payload:
 
 ```go
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	coderws "github.com/coder/websocket"
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/go-chi/chi"
+	"github.com/gqlgen/_examples/websocket-initfunc/server/graph"
+	"github.com/gqlgen/_examples/websocket-initfunc/server/graph/generated"
+	"github.com/rs/cors"
+)
+
+func webSocketInit(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+	// Get the token from payload
+	any := initPayload["authToken"]
+	token, ok := any.(string)
+	if !ok || token == "" {
+		// When authentication fails, you can set a custom close code and reason
+		// BEFORE returning the error. Make sure to return the modified context.
+		ctx = transport.WithWebsocketCloseCode(ctx, int(coderws.StatusPolicyViolation)) // 1008
+		ctx = transport.AppendCloseReason(ctx, "missing or invalid authToken")
+		return ctx, nil, errors.New("authToken not found in transport payload")
+	}
+
+	// Perform token verification and authentication...
+	userId := "john.doe" // e.g. userId, err := GetUserFromAuthentication(token)
+
+	// put it in context
+	ctxNew := context.WithValue(ctx, "username", userId)
+
+	return ctxNew, nil, nil
+}
+
+const defaultPort = "8080"
+
 func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultPort
+	}
+
 	router := chi.NewRouter()
 
-	router.Use(auth.Middleware(db))
+	// CORS setup, allow any for now
+	// https://gqlgen.com/recipes/cors/
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+		Debug:            false,
+	})
 
-	router.Handle("/", handler.Playground("Starwars", "/query"))
-	router.Handle("/query",
-		handler.GraphQL(starwars.NewExecutableSchema(starwars.NewResolver())),
-		WebsocketInitFunc(func(ctx context.Context, initPayload InitPayload) (context.Context, error) {
-			userId, err := validateAndGetUserID(payload["token"])
-			if err != nil {
-				return nil, err
-			}
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: coderws.AcceptOptions{
+				InsecureSkipVerify: true,
+			},
+		},
+		InitFunc: transport.WebsocketInitFunc(webSocketInit),
+	})
+	srv.AddTransport(transport.POST{})
+	srv.Use(extension.Introspection{})
 
-			// get the user from the database
-			user := getUserByID(db, userId)
+	router.Handle("/", playground.Handler("My GraphQL App", "/app"))
+	router.Handle("/app", c.Handler(srv))
 
-			// put it in context
-			userCtx := context.WithValue(r.Context(), userCtxKey, user)
-
-			// and return it so the resolvers can see it
-			return userCtx, nil
-		}))
-	)
-
-	err := http.ListenAndServe(":8080", router)
-	if err != nil {
-		panic(err)
-	}
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 ```
 

@@ -14,6 +14,10 @@ type Stub struct {
 	BackedByInterfaceResolver struct {
 		ID func(ctx context.Context, obj BackedByInterface) (string, error)
 	}
+	DeferModelResolver struct {
+		OtherResolvedValue func(ctx context.Context, obj *DeferModel) (string, error)
+		Values             func(ctx context.Context, obj *DeferModel) ([]string, error)
+	}
 	ErrorsResolver struct {
 		A func(ctx context.Context, obj *Errors) (*Error, error)
 		B func(ctx context.Context, obj *Errors) (*Error, error)
@@ -28,9 +32,12 @@ type Stub struct {
 		ResolverField func(ctx context.Context, obj *ModelMethods) (bool, error)
 	}
 	MutationResolver struct {
-		DefaultInput    func(ctx context.Context, input DefaultInput) (*DefaultParametersMirror, error)
-		UpdateSomething func(ctx context.Context, input SpecialInput) (string, error)
-		UpdatePtrToPtr  func(ctx context.Context, input UpdatePtrToPtrOuter) (*PtrToPtrOuter, error)
+		DefaultInput          func(ctx context.Context, input DefaultInput) (*DefaultParametersMirror, error)
+		OverrideValueViaInput func(ctx context.Context, input FieldsOrderInput) (*FieldsOrderPayload, error)
+		UpdateProduct         func(ctx context.Context, input map[string]interface{}) (string, error)
+		Issue4053             func(ctx context.Context, input *Issue4053Input1) (bool, error)
+		UpdateSomething       func(ctx context.Context, input SpecialInput) (string, error)
+		UpdatePtrToPtr        func(ctx context.Context, input UpdatePtrToPtrOuter) (*PtrToPtrOuter, error)
 	}
 	OverlappingFieldsResolver struct {
 		OldFoo func(ctx context.Context, obj *OverlappingFields) (int, error)
@@ -38,6 +45,9 @@ type Stub struct {
 	PanicsResolver struct {
 		FieldScalarMarshal func(ctx context.Context, obj *Panics) ([]MarshalPanic, error)
 		ArgUnmarshal       func(ctx context.Context, obj *Panics, u []MarshalPanic) (bool, error)
+	}
+	PetResolver struct {
+		Friends func(ctx context.Context, obj *Pet, limit *int) ([]*Pet, error)
 	}
 	PrimitiveResolver struct {
 		Value func(ctx context.Context, obj *Primitive) (int, error)
@@ -49,7 +59,7 @@ type Stub struct {
 	QueryResolver struct {
 		InvalidIdentifier                func(ctx context.Context) (*invalid_packagename.InvalidIdentifier, error)
 		Collision                        func(ctx context.Context) (*introspection1.It, error)
-		MapInput                         func(ctx context.Context, input map[string]interface{}) (*bool, error)
+		MapInput                         func(ctx context.Context, input map[string]any) (*bool, error)
 		Recursive                        func(ctx context.Context, input *RecursiveInputSlice) (*bool, error)
 		NestedInputs                     func(ctx context.Context, input [][]*OuterInput) (*bool, error)
 		NestedOutputs                    func(ctx context.Context) ([][]*OuterObject, error)
@@ -58,16 +68,23 @@ type Stub struct {
 		NullableArg                      func(ctx context.Context, arg *int) (*string, error)
 		InputSlice                       func(ctx context.Context, arg []string) (bool, error)
 		InputNullableSlice               func(ctx context.Context, arg []string) (bool, error)
+		InputOmittable                   func(ctx context.Context, arg OmittableInput) (string, error)
 		ShapeUnion                       func(ctx context.Context) (ShapeUnion, error)
 		Autobind                         func(ctx context.Context) (*Autobind, error)
 		DeprecatedField                  func(ctx context.Context) (string, error)
+		FieldWithDeprecatedArg           func(ctx context.Context, oldArg *int, newArg *int) (*string, error)
 		Overlapping                      func(ctx context.Context) (*OverlappingFields, error)
 		DefaultParameters                func(ctx context.Context, falsyBoolean *bool, truthyBoolean *bool) (*DefaultParametersMirror, error)
+		DeferSingle                      func(ctx context.Context) (*DeferModel, error)
+		DeferMultiple                    func(ctx context.Context) ([]*DeferModel, error)
 		DirectiveArg                     func(ctx context.Context, arg string) (*string, error)
 		DirectiveNullableArg             func(ctx context.Context, arg *int, arg2 *int, arg3 *string) (*string, error)
+		DirectiveSingleNullableArg       func(ctx context.Context, arg1 *string) (*string, error)
 		DirectiveInputNullable           func(ctx context.Context, arg *InputDirectives) (*string, error)
 		DirectiveInput                   func(ctx context.Context, arg InputDirectives) (*string, error)
 		DirectiveInputType               func(ctx context.Context, arg InnerInput) (*string, error)
+		DirectiveInputOuter              func(ctx context.Context, arg OuterWrapperInput) (*string, error)
+		DirectiveInputWithArgs           func(ctx context.Context, arg InputDirectivesWithArgs) (*string, error)
 		DirectiveObject                  func(ctx context.Context) (*ObjectDirectives, error)
 		DirectiveObjectWithCustomGoModel func(ctx context.Context) (*ObjectDirectivesWithCustomGoModel, error)
 		DirectiveFieldDef                func(ctx context.Context, ret string) (string, error)
@@ -78,28 +95,41 @@ type Stub struct {
 		EmbeddedCase2                    func(ctx context.Context) (*EmbeddedCase2, error)
 		EmbeddedCase3                    func(ctx context.Context) (*EmbeddedCase3, error)
 		EnumInInput                      func(ctx context.Context, input *InputWithEnumValue) (EnumTest, error)
+		SearchProducts                   func(ctx context.Context, filters map[string]interface{}) ([]string, error)
+		SearchRequired                   func(ctx context.Context, filters map[string]interface{}) ([]string, error)
+		SearchProductsNormal             func(ctx context.Context, filters map[string]any) ([]string, error)
+		SearchWithDefaults               func(ctx context.Context, filters map[string]interface{}) ([]string, error)
+		SearchMixed                      func(ctx context.Context, filters map[string]interface{}, limit *int, offset *int, sortBy *string) ([]string, error)
+		FilterProducts                   func(ctx context.Context, filters map[string]interface{}) ([]string, error)
+		FindProducts                     func(ctx context.Context, filters map[string]interface{}) ([]string, error)
+		SearchWithDirectives             func(ctx context.Context, input map[string]interface{}) ([]string, error)
 		Shapes                           func(ctx context.Context) ([]Shape, error)
 		NoShape                          func(ctx context.Context) (Shape, error)
 		Node                             func(ctx context.Context) (Node, error)
 		NoShapeTypedNil                  func(ctx context.Context) (Shape, error)
 		Animal                           func(ctx context.Context) (Animal, error)
 		NotAnInterface                   func(ctx context.Context) (BackedByInterface, error)
+		Dog                              func(ctx context.Context) (*Dog, error)
 		Issue896a                        func(ctx context.Context) ([]*CheckIssue896, error)
-		MapStringInterface               func(ctx context.Context, in map[string]interface{}) (map[string]interface{}, error)
-		MapNestedStringInterface         func(ctx context.Context, in *NestedMapInput) (map[string]interface{}, error)
+		MapStringInterface               func(ctx context.Context, in map[string]any) (map[string]any, error)
+		MapNestedStringInterface         func(ctx context.Context, in *NestedMapInput) (map[string]any, error)
+		MapNestedMapSlice                func(ctx context.Context, input map[string]any) (*bool, error)
 		ErrorBubble                      func(ctx context.Context) (*Error, error)
 		ErrorBubbleList                  func(ctx context.Context) ([]*Error, error)
 		ErrorList                        func(ctx context.Context) ([]*Error, error)
 		Errors                           func(ctx context.Context) (*Errors, error)
 		Valid                            func(ctx context.Context) (string, error)
+		Invalid                          func(ctx context.Context) (string, error)
 		Panics                           func(ctx context.Context) (*Panics, error)
 		PrimitiveObject                  func(ctx context.Context) ([]Primitive, error)
 		PrimitiveStringObject            func(ctx context.Context) ([]PrimitiveString, error)
+		PtrToAnyContainer                func(ctx context.Context) (*PtrToAnyContainer, error)
 		PtrToSliceContainer              func(ctx context.Context) (*PtrToSliceContainer, error)
 		Infinity                         func(ctx context.Context) (float64, error)
 		StringFromContextInterface       func(ctx context.Context) (*StringFromContextInterface, error)
 		StringFromContextFunction        func(ctx context.Context) (string, error)
 		DefaultScalar                    func(ctx context.Context, arg string) (string, error)
+		SkipInclude                      func(ctx context.Context) (*SkipIncludeTestType, error)
 		Slices                           func(ctx context.Context) (*Slices, error)
 		ScalarSlice                      func(ctx context.Context) ([]byte, error)
 		Fallback                         func(ctx context.Context, arg FallbackToStringEncoding) (FallbackToStringEncoding, error)
@@ -107,6 +137,7 @@ type Stub struct {
 		VOkCaseValue                     func(ctx context.Context) (*VOkCaseValue, error)
 		VOkCaseNil                       func(ctx context.Context) (*VOkCaseNil, error)
 		ValidType                        func(ctx context.Context) (*ValidType, error)
+		VariadicModel                    func(ctx context.Context) (*VariadicModel, error)
 		WrappedStruct                    func(ctx context.Context) (*WrappedStruct, error)
 		WrappedScalar                    func(ctx context.Context) (otherpkg.Scalar, error)
 		WrappedMap                       func(ctx context.Context) (WrappedMap, error)
@@ -120,9 +151,11 @@ type Stub struct {
 		DirectiveDouble        func(ctx context.Context) (<-chan *string, error)
 		DirectiveUnimplemented func(ctx context.Context) (<-chan *string, error)
 		Issue896b              func(ctx context.Context) (<-chan []*CheckIssue896, error)
+		ErrorRequired          func(ctx context.Context) (<-chan *Error, error)
 	}
 	UserResolver struct {
 		Friends func(ctx context.Context, obj *User) ([]*User, error)
+		Pets    func(ctx context.Context, obj *User, limit *int) ([]*Pet, error)
 	}
 	WrappedMapResolver struct {
 		Get func(ctx context.Context, obj WrappedMap, key string) (string, error)
@@ -130,10 +163,17 @@ type Stub struct {
 	WrappedSliceResolver struct {
 		Get func(ctx context.Context, obj WrappedSlice, idx int) (string, error)
 	}
+
+	FieldsOrderInputResolver struct {
+		OverrideFirstField func(ctx context.Context, obj *FieldsOrderInput, data *string) error
+	}
 }
 
 func (r *Stub) BackedByInterface() BackedByInterfaceResolver {
 	return &stubBackedByInterface{r}
+}
+func (r *Stub) DeferModel() DeferModelResolver {
+	return &stubDeferModel{r}
 }
 func (r *Stub) Errors() ErrorsResolver {
 	return &stubErrors{r}
@@ -152,6 +192,9 @@ func (r *Stub) OverlappingFields() OverlappingFieldsResolver {
 }
 func (r *Stub) Panics() PanicsResolver {
 	return &stubPanics{r}
+}
+func (r *Stub) Pet() PetResolver {
+	return &stubPet{r}
 }
 func (r *Stub) Primitive() PrimitiveResolver {
 	return &stubPrimitive{r}
@@ -175,10 +218,23 @@ func (r *Stub) WrappedSlice() WrappedSliceResolver {
 	return &stubWrappedSlice{r}
 }
 
+func (r *Stub) FieldsOrderInput() FieldsOrderInputResolver {
+	return &stubFieldsOrderInput{r}
+}
+
 type stubBackedByInterface struct{ *Stub }
 
 func (r *stubBackedByInterface) ID(ctx context.Context, obj BackedByInterface) (string, error) {
 	return r.BackedByInterfaceResolver.ID(ctx, obj)
+}
+
+type stubDeferModel struct{ *Stub }
+
+func (r *stubDeferModel) OtherResolvedValue(ctx context.Context, obj *DeferModel) (string, error) {
+	return r.DeferModelResolver.OtherResolvedValue(ctx, obj)
+}
+func (r *stubDeferModel) Values(ctx context.Context, obj *DeferModel) ([]string, error) {
+	return r.DeferModelResolver.Values(ctx, obj)
 }
 
 type stubErrors struct{ *Stub }
@@ -216,6 +272,15 @@ type stubMutation struct{ *Stub }
 func (r *stubMutation) DefaultInput(ctx context.Context, input DefaultInput) (*DefaultParametersMirror, error) {
 	return r.MutationResolver.DefaultInput(ctx, input)
 }
+func (r *stubMutation) OverrideValueViaInput(ctx context.Context, input FieldsOrderInput) (*FieldsOrderPayload, error) {
+	return r.MutationResolver.OverrideValueViaInput(ctx, input)
+}
+func (r *stubMutation) UpdateProduct(ctx context.Context, input map[string]interface{}) (string, error) {
+	return r.MutationResolver.UpdateProduct(ctx, input)
+}
+func (r *stubMutation) Issue4053(ctx context.Context, input *Issue4053Input1) (bool, error) {
+	return r.MutationResolver.Issue4053(ctx, input)
+}
 func (r *stubMutation) UpdateSomething(ctx context.Context, input SpecialInput) (string, error) {
 	return r.MutationResolver.UpdateSomething(ctx, input)
 }
@@ -236,6 +301,12 @@ func (r *stubPanics) FieldScalarMarshal(ctx context.Context, obj *Panics) ([]Mar
 }
 func (r *stubPanics) ArgUnmarshal(ctx context.Context, obj *Panics, u []MarshalPanic) (bool, error) {
 	return r.PanicsResolver.ArgUnmarshal(ctx, obj, u)
+}
+
+type stubPet struct{ *Stub }
+
+func (r *stubPet) Friends(ctx context.Context, obj *Pet, limit *int) ([]*Pet, error) {
+	return r.PetResolver.Friends(ctx, obj, limit)
 }
 
 type stubPrimitive struct{ *Stub }
@@ -261,7 +332,7 @@ func (r *stubQuery) InvalidIdentifier(ctx context.Context) (*invalid_packagename
 func (r *stubQuery) Collision(ctx context.Context) (*introspection1.It, error) {
 	return r.QueryResolver.Collision(ctx)
 }
-func (r *stubQuery) MapInput(ctx context.Context, input map[string]interface{}) (*bool, error) {
+func (r *stubQuery) MapInput(ctx context.Context, input map[string]any) (*bool, error) {
 	return r.QueryResolver.MapInput(ctx, input)
 }
 func (r *stubQuery) Recursive(ctx context.Context, input *RecursiveInputSlice) (*bool, error) {
@@ -288,6 +359,9 @@ func (r *stubQuery) InputSlice(ctx context.Context, arg []string) (bool, error) 
 func (r *stubQuery) InputNullableSlice(ctx context.Context, arg []string) (bool, error) {
 	return r.QueryResolver.InputNullableSlice(ctx, arg)
 }
+func (r *stubQuery) InputOmittable(ctx context.Context, arg OmittableInput) (string, error) {
+	return r.QueryResolver.InputOmittable(ctx, arg)
+}
 func (r *stubQuery) ShapeUnion(ctx context.Context) (ShapeUnion, error) {
 	return r.QueryResolver.ShapeUnion(ctx)
 }
@@ -297,17 +371,29 @@ func (r *stubQuery) Autobind(ctx context.Context) (*Autobind, error) {
 func (r *stubQuery) DeprecatedField(ctx context.Context) (string, error) {
 	return r.QueryResolver.DeprecatedField(ctx)
 }
+func (r *stubQuery) FieldWithDeprecatedArg(ctx context.Context, oldArg *int, newArg *int) (*string, error) {
+	return r.QueryResolver.FieldWithDeprecatedArg(ctx, oldArg, newArg)
+}
 func (r *stubQuery) Overlapping(ctx context.Context) (*OverlappingFields, error) {
 	return r.QueryResolver.Overlapping(ctx)
 }
 func (r *stubQuery) DefaultParameters(ctx context.Context, falsyBoolean *bool, truthyBoolean *bool) (*DefaultParametersMirror, error) {
 	return r.QueryResolver.DefaultParameters(ctx, falsyBoolean, truthyBoolean)
 }
+func (r *stubQuery) DeferSingle(ctx context.Context) (*DeferModel, error) {
+	return r.QueryResolver.DeferSingle(ctx)
+}
+func (r *stubQuery) DeferMultiple(ctx context.Context) ([]*DeferModel, error) {
+	return r.QueryResolver.DeferMultiple(ctx)
+}
 func (r *stubQuery) DirectiveArg(ctx context.Context, arg string) (*string, error) {
 	return r.QueryResolver.DirectiveArg(ctx, arg)
 }
 func (r *stubQuery) DirectiveNullableArg(ctx context.Context, arg *int, arg2 *int, arg3 *string) (*string, error) {
 	return r.QueryResolver.DirectiveNullableArg(ctx, arg, arg2, arg3)
+}
+func (r *stubQuery) DirectiveSingleNullableArg(ctx context.Context, arg1 *string) (*string, error) {
+	return r.QueryResolver.DirectiveSingleNullableArg(ctx, arg1)
 }
 func (r *stubQuery) DirectiveInputNullable(ctx context.Context, arg *InputDirectives) (*string, error) {
 	return r.QueryResolver.DirectiveInputNullable(ctx, arg)
@@ -317,6 +403,12 @@ func (r *stubQuery) DirectiveInput(ctx context.Context, arg InputDirectives) (*s
 }
 func (r *stubQuery) DirectiveInputType(ctx context.Context, arg InnerInput) (*string, error) {
 	return r.QueryResolver.DirectiveInputType(ctx, arg)
+}
+func (r *stubQuery) DirectiveInputOuter(ctx context.Context, arg OuterWrapperInput) (*string, error) {
+	return r.QueryResolver.DirectiveInputOuter(ctx, arg)
+}
+func (r *stubQuery) DirectiveInputWithArgs(ctx context.Context, arg InputDirectivesWithArgs) (*string, error) {
+	return r.QueryResolver.DirectiveInputWithArgs(ctx, arg)
 }
 func (r *stubQuery) DirectiveObject(ctx context.Context) (*ObjectDirectives, error) {
 	return r.QueryResolver.DirectiveObject(ctx)
@@ -348,6 +440,30 @@ func (r *stubQuery) EmbeddedCase3(ctx context.Context) (*EmbeddedCase3, error) {
 func (r *stubQuery) EnumInInput(ctx context.Context, input *InputWithEnumValue) (EnumTest, error) {
 	return r.QueryResolver.EnumInInput(ctx, input)
 }
+func (r *stubQuery) SearchProducts(ctx context.Context, filters map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.SearchProducts(ctx, filters)
+}
+func (r *stubQuery) SearchRequired(ctx context.Context, filters map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.SearchRequired(ctx, filters)
+}
+func (r *stubQuery) SearchProductsNormal(ctx context.Context, filters map[string]any) ([]string, error) {
+	return r.QueryResolver.SearchProductsNormal(ctx, filters)
+}
+func (r *stubQuery) SearchWithDefaults(ctx context.Context, filters map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.SearchWithDefaults(ctx, filters)
+}
+func (r *stubQuery) SearchMixed(ctx context.Context, filters map[string]interface{}, limit *int, offset *int, sortBy *string) ([]string, error) {
+	return r.QueryResolver.SearchMixed(ctx, filters, limit, offset, sortBy)
+}
+func (r *stubQuery) FilterProducts(ctx context.Context, filters map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.FilterProducts(ctx, filters)
+}
+func (r *stubQuery) FindProducts(ctx context.Context, filters map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.FindProducts(ctx, filters)
+}
+func (r *stubQuery) SearchWithDirectives(ctx context.Context, input map[string]interface{}) ([]string, error) {
+	return r.QueryResolver.SearchWithDirectives(ctx, input)
+}
 func (r *stubQuery) Shapes(ctx context.Context) ([]Shape, error) {
 	return r.QueryResolver.Shapes(ctx)
 }
@@ -366,14 +482,20 @@ func (r *stubQuery) Animal(ctx context.Context) (Animal, error) {
 func (r *stubQuery) NotAnInterface(ctx context.Context) (BackedByInterface, error) {
 	return r.QueryResolver.NotAnInterface(ctx)
 }
+func (r *stubQuery) Dog(ctx context.Context) (*Dog, error) {
+	return r.QueryResolver.Dog(ctx)
+}
 func (r *stubQuery) Issue896a(ctx context.Context) ([]*CheckIssue896, error) {
 	return r.QueryResolver.Issue896a(ctx)
 }
-func (r *stubQuery) MapStringInterface(ctx context.Context, in map[string]interface{}) (map[string]interface{}, error) {
+func (r *stubQuery) MapStringInterface(ctx context.Context, in map[string]any) (map[string]any, error) {
 	return r.QueryResolver.MapStringInterface(ctx, in)
 }
-func (r *stubQuery) MapNestedStringInterface(ctx context.Context, in *NestedMapInput) (map[string]interface{}, error) {
+func (r *stubQuery) MapNestedStringInterface(ctx context.Context, in *NestedMapInput) (map[string]any, error) {
 	return r.QueryResolver.MapNestedStringInterface(ctx, in)
+}
+func (r *stubQuery) MapNestedMapSlice(ctx context.Context, input map[string]any) (*bool, error) {
+	return r.QueryResolver.MapNestedMapSlice(ctx, input)
 }
 func (r *stubQuery) ErrorBubble(ctx context.Context) (*Error, error) {
 	return r.QueryResolver.ErrorBubble(ctx)
@@ -390,6 +512,9 @@ func (r *stubQuery) Errors(ctx context.Context) (*Errors, error) {
 func (r *stubQuery) Valid(ctx context.Context) (string, error) {
 	return r.QueryResolver.Valid(ctx)
 }
+func (r *stubQuery) Invalid(ctx context.Context) (string, error) {
+	return r.QueryResolver.Invalid(ctx)
+}
 func (r *stubQuery) Panics(ctx context.Context) (*Panics, error) {
 	return r.QueryResolver.Panics(ctx)
 }
@@ -398,6 +523,9 @@ func (r *stubQuery) PrimitiveObject(ctx context.Context) ([]Primitive, error) {
 }
 func (r *stubQuery) PrimitiveStringObject(ctx context.Context) ([]PrimitiveString, error) {
 	return r.QueryResolver.PrimitiveStringObject(ctx)
+}
+func (r *stubQuery) PtrToAnyContainer(ctx context.Context) (*PtrToAnyContainer, error) {
+	return r.QueryResolver.PtrToAnyContainer(ctx)
 }
 func (r *stubQuery) PtrToSliceContainer(ctx context.Context) (*PtrToSliceContainer, error) {
 	return r.QueryResolver.PtrToSliceContainer(ctx)
@@ -413,6 +541,9 @@ func (r *stubQuery) StringFromContextFunction(ctx context.Context) (string, erro
 }
 func (r *stubQuery) DefaultScalar(ctx context.Context, arg string) (string, error) {
 	return r.QueryResolver.DefaultScalar(ctx, arg)
+}
+func (r *stubQuery) SkipInclude(ctx context.Context) (*SkipIncludeTestType, error) {
+	return r.QueryResolver.SkipInclude(ctx)
 }
 func (r *stubQuery) Slices(ctx context.Context) (*Slices, error) {
 	return r.QueryResolver.Slices(ctx)
@@ -434,6 +565,9 @@ func (r *stubQuery) VOkCaseNil(ctx context.Context) (*VOkCaseNil, error) {
 }
 func (r *stubQuery) ValidType(ctx context.Context) (*ValidType, error) {
 	return r.QueryResolver.ValidType(ctx)
+}
+func (r *stubQuery) VariadicModel(ctx context.Context) (*VariadicModel, error) {
+	return r.QueryResolver.VariadicModel(ctx)
 }
 func (r *stubQuery) WrappedStruct(ctx context.Context) (*WrappedStruct, error) {
 	return r.QueryResolver.WrappedStruct(ctx)
@@ -471,11 +605,17 @@ func (r *stubSubscription) DirectiveUnimplemented(ctx context.Context) (<-chan *
 func (r *stubSubscription) Issue896b(ctx context.Context) (<-chan []*CheckIssue896, error) {
 	return r.SubscriptionResolver.Issue896b(ctx)
 }
+func (r *stubSubscription) ErrorRequired(ctx context.Context) (<-chan *Error, error) {
+	return r.SubscriptionResolver.ErrorRequired(ctx)
+}
 
 type stubUser struct{ *Stub }
 
 func (r *stubUser) Friends(ctx context.Context, obj *User) ([]*User, error) {
 	return r.UserResolver.Friends(ctx, obj)
+}
+func (r *stubUser) Pets(ctx context.Context, obj *User, limit *int) ([]*Pet, error) {
+	return r.UserResolver.Pets(ctx, obj, limit)
 }
 
 type stubWrappedMap struct{ *Stub }
@@ -488,4 +628,10 @@ type stubWrappedSlice struct{ *Stub }
 
 func (r *stubWrappedSlice) Get(ctx context.Context, obj WrappedSlice, idx int) (string, error) {
 	return r.WrappedSliceResolver.Get(ctx, obj, idx)
+}
+
+type stubFieldsOrderInput struct{ *Stub }
+
+func (r *stubFieldsOrderInput) OverrideFirstField(ctx context.Context, obj *FieldsOrderInput, data *string) error {
+	return r.FieldsOrderInputResolver.OverrideFirstField(ctx, obj, data)
 }

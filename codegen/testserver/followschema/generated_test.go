@@ -8,13 +8,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestForcedResolverFieldIsPointer(t *testing.T) {
-	field, ok := reflect.TypeOf((*ForcedResolverResolver)(nil)).Elem().MethodByName("Field")
+	field, ok := reflect.TypeFor[ForcedResolverResolver]().MethodByName("Field")
 	require.True(t, ok)
 	require.Equal(t, "*followschema.Circle", field.Type.Out(0).String())
 }
@@ -37,7 +39,8 @@ func TestUnionFragments(t *testing.T) {
 		return &Circle{Radius: 32}, nil
 	}
 
-	srv := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
 	c := client.New(srv)
 
 	t.Run("inline fragment on union", func(t *testing.T) {

@@ -3,59 +3,400 @@ package playground
 import (
 	"html/template"
 	"net/http"
+	"net/url"
 )
 
 var page = template.Must(template.New("graphiql").Parse(`<!DOCTYPE html>
 <html>
-<head>
-	<meta charset=utf-8/>
-	<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react@{{ .version }}/build/static/css/index.css"
-		integrity="{{ .cssSRI }}" crossorigin="anonymous"/>
-	<link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react@{{ .version }}/build/favicon.png"
-		integrity="{{ .faviconSRI }}" crossorigin="anonymous"/>
-	<script src="https://cdn.jsdelivr.net/npm/graphql-playground-react@{{ .version }}/build/static/js/middleware.js"
-		integrity="{{ .jsSRI }}" crossorigin="anonymous"></script>
-	<title>{{.title}}</title>
-</head>
-<body>
-<style type="text/css">
-	html { font-family: "Open Sans", sans-serif; overflow: hidden; }
-	body { margin: 0; background: #172a3a; }
-</style>
-<div id="root"/>
-<script type="text/javascript">
-	window.addEventListener('load', function (event) {
-		const root = document.getElementById('root');
-		root.classList.add('playgroundIn');
-		const wsProto = location.protocol == 'https:' ? 'wss:' : 'ws:'
-		GraphQLPlayground.init(root, {
-			endpoint: location.protocol + '//' + location.host + '{{.endpoint}}',
-			subscriptionsEndpoint: wsProto + '//' + location.host + '{{.endpoint }}',
-           shareEnabled: true,
-			settings: {
-				'request.credentials': 'same-origin'
-			}
-		})
-	})
-</script>
-</body>
+  <head>
+  	<meta charset="utf-8">
+  	<title>{{.Title}}</title>
+	<style>
+		body {
+			margin: 0;
+		}
+
+		#graphiql {
+			height: 100vh;
+		}
+
+		.loading {
+        	height: 100%;
+        	display: flex;
+        	align-items: center;
+        	justify-content: center;
+        	font-size: 4rem;
+		}
+	</style>
+	<script
+		src="{{.ReactUrl}}"
+		integrity="{{.ReactSRI}}"
+		crossorigin="anonymous"
+	></script>
+	<script
+		src="{{.ReactDOMUrl}}"
+		integrity="{{.ReactDOMSRI}}"
+		crossorigin="anonymous"
+	></script>
+	<link
+		rel="stylesheet"
+		href="{{.CssUrl}}"
+		integrity="{{.CssSRI}}"
+		crossorigin="anonymous"
+	/>
+{{- if .EnablePluginExplorer}}
+	<link
+		rel="stylesheet"
+		href="{{.PluginExplorerCssUrl}}"
+		integrity="{{.PluginExplorerCssSRI}}"
+		crossorigin="anonymous"
+	/>
+{{- end}}
+  </head>
+  <body>
+    <div id="graphiql">
+		<div class="loading">Loading…</div>
+	</div>
+
+	<script
+		src="{{.JsUrl}}"
+		integrity="{{.JsSRI}}"
+		crossorigin="anonymous"
+	></script>
+{{- if .EnablePluginExplorer}}
+	<script
+		src="{{.PluginExplorerJsUrl}}"
+		integrity="{{.PluginExplorerJsSRI}}"
+		crossorigin="anonymous"
+	></script>
+{{- end}}
+
+    <script>
+      class PrefixedStorage {
+        constructor(prefix = '') {
+          this.prefix = prefix;
+        }
+
+        _addPrefix(key) {
+          return this.prefix + key;
+        }
+
+        _removePrefix(prefixedKey) {
+          return prefixedKey.substring(this.prefix.length);
+        }
+
+        setItem(key, value) {
+          const prefixedKey = this._addPrefix(key);
+          localStorage.setItem(prefixedKey, value);
+        }
+
+        getItem(key) {
+          const prefixedKey = this._addPrefix(key);
+          return localStorage.getItem(prefixedKey);
+        }
+
+        removeItem(key) {
+          const prefixedKey = this._addPrefix(key);
+          localStorage.removeItem(prefixedKey);
+        }
+
+        clear() {
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(this.prefix)) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+
+        get length() {
+          let count = 0;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(this.prefix)) {
+              count++;
+            }
+          }
+          return count;
+        }
+
+        key(index) {
+          const keys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(this.prefix)) {
+              keys.push(this._removePrefix(key));
+            }
+          }
+          return index >= 0 && index < keys.length ? keys[index] : null;
+        }
+      }
+{{- if .EndpointIsAbsolute}}
+      const url = {{.Endpoint}};
+      const subscriptionUrl = {{.SubscriptionEndpoint}};
+{{- else}}
+      const url = location.protocol + '//' + location.host + {{.Endpoint}};
+      const wsProto = location.protocol == 'https:' ? 'wss:' : 'ws:';
+      const subscriptionUrl = wsProto + '//' + location.host + {{.Endpoint}};
+{{- end}}
+{{- if .FetcherHeaders}}
+      const fetcherHeaders = {{.FetcherHeaders}};
+{{- else}}
+      const fetcherHeaders = undefined;
+{{- end}}
+{{- if .UiHeaders}}
+      const uiHeaders = {{.UiHeaders}};
+{{- else}}
+      const uiHeaders = undefined;
+{{- end}}
+
+      let plugins = [];
+{{- if .EnablePluginExplorer}}
+      plugins.push(GraphiQLPluginExplorer.explorerPlugin());
+{{- end}}
+{{- if .PersistStateInURL }}
+      // Parse URL parameters.
+      const parameters = Object.fromEntries(
+        new URLSearchParams(window.location.search)
+      );
+
+      function updateURL() {
+        const searchParams = new URLSearchParams();
+
+        Object.entries(parameters).forEach(([key, value]) => {
+          if (value) {
+            searchParams.set(key, value);
+          }
+        });
+
+        history.replaceState(
+          null,
+          '',
+          '?' + searchParams.toString(),
+        );
+      }
+
+      function onEditQuery(query) {
+        parameters.query = query;
+        updateURL();
+      }
+
+      function onEditVariables(variables) {
+        parameters.variables = variables;
+        updateURL();
+      }
+
+      function onEditHeaders(headers) {
+        parameters.headers = headers;
+        updateURL();
+      }
+
+      function onEditOperationName(operationName) {
+        parameters.operationName = operationName;
+        updateURL();
+      }
+{{- end }}
+
+      const fetcher = GraphiQL.createFetcher({ url, subscriptionUrl, headers: fetcherHeaders });
+      ReactDOM.render(
+        React.createElement(GraphiQL, {
+          fetcher: fetcher,
+          isHeadersEditorEnabled: true,
+          shouldPersistHeaders: true,
+{{- if .PersistStateInURL }}
+          query: parameters.query,
+          variables: parameters.variables,
+          operationName: parameters.operationName,
+
+          headers:
+            parameters.headers ??
+            (uiHeaders
+              ? JSON.stringify(uiHeaders, null, 2)
+              : undefined),
+
+          onEditQuery: onEditQuery,
+          onEditVariables: onEditVariables,
+          onEditHeaders: onEditHeaders,
+          onEditOperationName: onEditOperationName,
+{{- else }}
+          headers: JSON.stringify(uiHeaders, null, 2),
+{{- end }}
+          plugins: plugins,
+          storage: new PrefixedStorage('{{.StoragePrefix}}'),
+          inputValueDeprecation: true
+        }),
+        document.getElementById('graphiql'),
+      );
+    </script>
+  </body>
 </html>
 `))
 
-func Handler(title string, endpoint string) http.HandlerFunc {
+type GraphiqlConfig struct {
+	Title                string
+	StoragePrefix        string
+	Endpoint             string
+	FetcherHeaders       map[string]string
+	UiHeaders            map[string]string
+	EndpointIsAbsolute   bool
+	SubscriptionEndpoint string
+	PersistStateInURL    bool
+	JsUrl                template.URL
+	JsSRI                string
+	CssUrl               template.URL
+	CssSRI               string
+	ReactUrl             template.URL
+	ReactSRI             string
+	ReactDOMUrl          template.URL
+	ReactDOMSRI          string
+	EnablePluginExplorer bool
+	PluginExplorerJsUrl  template.URL
+	PluginExplorerJsSRI  string
+	PluginExplorerCssUrl template.URL
+	PluginExplorerCssSRI string
+}
+type GraphiqlConfigOption func(*GraphiqlConfig)
+
+func WithGraphiqlFetcherHeaders(headers map[string]string) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.FetcherHeaders = headers
+	}
+}
+
+func WithGraphiqlUiHeaders(headers map[string]string) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.UiHeaders = headers
+	}
+}
+
+// WithGraphiqlPersistStateInURL enables loading GraphiQL state from URL
+// parameters and keeps the URL synchronized as the query, variables,
+// headers, and operation name change.
+func WithGraphiqlPersistStateInURL(enable bool) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.PersistStateInURL = enable
+	}
+}
+
+func WithGraphiqlVersion(jsUrl, cssUrl, jsSri, cssSri string) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.JsUrl = template.URL(jsUrl)
+		config.CssUrl = template.URL(cssUrl)
+		config.JsSRI = jsSri
+		config.CssSRI = cssSri
+	}
+}
+
+func WithGraphiqlReactVersion(
+	reactJsUrl, reactDomJsUrl, reactJsSri, reactDomJsSri string,
+) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.ReactUrl = template.URL(reactJsUrl)
+		config.ReactDOMUrl = template.URL(reactDomJsUrl)
+		config.ReactSRI = reactJsSri
+		config.ReactDOMSRI = reactDomJsSri
+	}
+}
+
+func WithGraphiqlPluginExplorerVersion(jsUrl, cssUrl, jsSri, cssSri string) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.PluginExplorerJsUrl = template.URL(jsUrl)
+		config.PluginExplorerCssUrl = template.URL(cssUrl)
+		config.PluginExplorerJsSRI = jsSri
+		config.PluginExplorerCssSRI = cssSri
+	}
+}
+
+func WithGraphiqlEnablePluginExplorer(enable bool) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.EnablePluginExplorer = enable
+	}
+}
+
+func WithStoragePrefix(prefix string) GraphiqlConfigOption {
+	return func(config *GraphiqlConfig) {
+		config.StoragePrefix = prefix
+	}
+}
+
+// Handler responsible for setting up the playground
+func Handler(title, endpoint string, opts ...GraphiqlConfigOption) http.HandlerFunc {
+	data := GraphiqlConfig{
+		Title:                title,
+		Endpoint:             endpoint,
+		EndpointIsAbsolute:   endpointHasScheme(endpoint),
+		SubscriptionEndpoint: getSubscriptionEndpoint(endpoint),
+		// https://www.jsdelivr.com/package/npm/graphiql?tab=files
+		JsUrl:  "https://cdn.jsdelivr.net/npm/graphiql@4.1.2/graphiql.min.js",
+		JsSRI:  "sha256-hnImuor1znlJkD/FOTL3jayfS/xsyNoP04abi8bFJWs=",
+		CssUrl: "https://cdn.jsdelivr.net/npm/graphiql@4.1.2/graphiql.min.css",
+		CssSRI: "sha256-MEh+B2NdMSpj9kexQNN3QKc8UzMrCXW/Sx/phcpuyIU=",
+		// https://www.jsdelivr.com/package/npm/react?tab=files
+		ReactUrl: "https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js",
+		ReactSRI: "sha256-S0lp+k7zWUMk2ixteM6HZvu8L9Eh//OVrt+ZfbCpmgY=",
+		// https://www.jsdelivr.com/package/npm/react-dom?tab=files
+		ReactDOMUrl: "https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js",
+		ReactDOMSRI: "sha256-IXWO0ITNDjfnNXIu5POVfqlgYoop36bDzhodR6LW5Pc=",
+		// https://www.jsdelivr.com/package/npm/@graphiql/plugin-explorer?tab=files
+		PluginExplorerJsUrl: template.URL(
+			"https://cdn.jsdelivr.net/npm/@graphiql/plugin-explorer@4.0.6/dist/index.umd.js",
+		),
+		PluginExplorerJsSRI: "sha256-UM8sWOS0Xa9yLY85q6Clh0pF4qpxX+TOcJ41flECqBs=",
+		PluginExplorerCssUrl: template.URL(
+			"https://cdn.jsdelivr.net/npm/@graphiql/plugin-explorer@4.0.6/dist/style.min.css",
+		),
+		PluginExplorerCssSRI: "sha256-b0izygy8aEMY3fCLmtNkm9PKdE3kRD4Qjn6Q8gw5xKI=",
+	}
+	for _, opt := range opts {
+		opt(&data)
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "text/html")
-		err := page.Execute(w, map[string]string{
-			"title":      title,
-			"endpoint":   endpoint,
-			"version":    "1.7.26",
-			"cssSRI":     "sha256-dKnNLEFwKSVFpkpjRWe+o/jQDM6n/JsvQ0J3l5Dk3fc=",
-			"faviconSRI": "sha256-GhTyE+McTU79R4+pRO6ih+4TfsTOrpPwD8ReKFzb3PM=",
-			"jsSRI":      "sha256-SG9YAy4eywTcLckwij7V4oSCG3hOdV1m+2e1XuNxIgk=",
-		})
-		if err != nil {
+		w.Header().Add("Content-Type", "text/html; charset=UTF-8")
+
+		if err := page.Execute(w, data); err != nil {
 			panic(err)
 		}
 	}
+}
+
+// HandlerWithHeaders sets up the playground.
+// fetcherHeaders are used by the playground's fetcher instance and will not be visible in the UI.
+// uiHeaders are default headers that will show up in the UI headers editor.
+func HandlerWithHeaders(
+	title, endpoint string,
+	fetcherHeaders, uiHeaders map[string]string,
+) http.HandlerFunc {
+	return Handler(
+		title,
+		endpoint,
+		WithGraphiqlFetcherHeaders(fetcherHeaders),
+		WithGraphiqlUiHeaders(uiHeaders),
+	)
+}
+
+// endpointHasScheme checks if the endpoint has a scheme.
+func endpointHasScheme(endpoint string) bool {
+	u, err := url.Parse(endpoint)
+	return err == nil && u.Scheme != ""
+}
+
+// getSubscriptionEndpoint returns the subscription endpoint for the given
+// endpoint if it is parsable as a URL, or an empty string.
+func getSubscriptionEndpoint(endpoint string) string {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return ""
+	}
+
+	switch u.Scheme {
+	case "https":
+		u.Scheme = "wss"
+	default:
+		u.Scheme = "ws"
+	}
+
+	return u.String()
 }

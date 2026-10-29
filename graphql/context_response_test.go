@@ -11,6 +11,12 @@ import (
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
+func nilUserPresenter(ctx context.Context, err error) *gqlerror.Error {
+	return nil
+}
+
+var _ ErrorPresenterFunc = nilUserPresenter
+
 func TestAddError(t *testing.T) {
 	ctx := WithResponseContext(context.Background(), DefaultErrorPresenter, nil)
 
@@ -80,14 +86,36 @@ func TestAddError(t *testing.T) {
 	}
 }
 
-func TestGetErrorFromPresenter(t *testing.T) {
-	ctx := WithResponseContext(context.Background(), func(ctx context.Context, err error) *gqlerror.Error {
-		errs := GetErrors(ctx)
+func TestAddError_NilUserPresenter(t *testing.T) {
+	ctx := WithResponseContext(context.Background(), nilUserPresenter, nil)
+	nilUserPresenterRoot := &FieldContext{
+		Field: CollectedField{
+			Field: &ast.Field{
+				Alias: "foo",
+			},
+		},
+	}
+	ctx = WithFieldContext(ctx, nilUserPresenterRoot)
+	AddError(ctx, errors.New("foo"))
+	AddError(ctx, errors.New("bar"))
 
-		// because we are still presenting the error it is not expected to be returned, but this should not deadlock.
-		require.Len(t, errs, 0)
-		return DefaultErrorPresenter(ctx, err)
-	}, nil)
+	errList := GetFieldErrors(ctx, nilUserPresenterRoot)
+	require.Empty(t, errList)
+}
+
+func TestGetErrorFromPresenter(t *testing.T) {
+	ctx := WithResponseContext(
+		context.Background(),
+		func(ctx context.Context, err error) *gqlerror.Error {
+			errs := GetErrors(ctx)
+
+			// because we are still presenting the error it is not expected to be returned, but this
+			// should not deadlock.
+			require.Empty(t, errs)
+			return DefaultErrorPresenter(ctx, err)
+		},
+		nil,
+	)
 
 	ctx = WithFieldContext(ctx, &FieldContext{})
 	AddError(ctx, errors.New("foo1"))

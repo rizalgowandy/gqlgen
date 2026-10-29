@@ -1,27 +1,37 @@
 package modelgen
 
 import (
+	_ "embed"
 	"fmt"
 	"go/types"
+	"os"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/vektah/gqlparser/v2/ast"
 
 	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/codegen/templates"
 	"github.com/99designs/gqlgen/plugin"
-	"github.com/vektah/gqlparser/v2/ast"
 )
 
-type BuildMutateHook = func(b *ModelBuild) *ModelBuild
+//go:embed models.gotpl
+var modelTemplate string
 
-type FieldMutateHook = func(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error)
+type (
+	BuildMutateHook = func(b *ModelBuild) *ModelBuild
+	FieldMutateHook = func(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error)
+)
 
-// defaultFieldMutateHook is the default hook for the Plugin which applies the GoTagFieldHook.
-func defaultFieldMutateHook(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error) {
+// DefaultFieldMutateHook is the default hook for the Plugin which applies the GoFieldHook and
+// GoTagFieldHook.
+func DefaultFieldMutateHook(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error) {
 	return GoTagFieldHook(td, fd, f)
 }
 
-func defaultBuildMutateHook(b *ModelBuild) *ModelBuild {
+// DefaultBuildMutateHook is the default hook for the Plugin which mutate ModelBuild.
+func DefaultBuildMutateHook(b *ModelBuild) *ModelBuild {
 	return b
 }
 
@@ -36,6 +46,10 @@ type ModelBuild struct {
 type Interface struct {
 	Description string
 	Name        string
+	Fields      []*Field
+	Implements  []string
+	OmitCheck   bool
+	Models      []*Object
 }
 
 type Object struct {
@@ -43,19 +57,29 @@ type Object struct {
 	Name        string
 	Fields      []*Field
 	Implements  []string
+	// Implementations holds Implements with their getters; set after the
+	// build hook runs.
+	Implementations []*Implementation
 }
 
 type Field struct {
 	Description string
-	Name        string
-	Type        types.Type
-	Tag         string
+	// Name is the field's name as it appears in the schema
+	Name string
+	// GoName is the field's name as it appears in the generated Go code
+	GoName        string
+	Type          types.Type
+	Tag           string
+	IsResolver    bool
+	Omittable     bool
+	ForceGenerate bool
 }
 
 type Enum struct {
-	Description string
-	Name        string
-	Values      []*EnumValue
+	Description        string
+	Name               string
+	Values             []*EnumValue
+	OmitJSONMarshalers bool
 }
 
 type EnumValue struct {
@@ -65,8 +89,8 @@ type EnumValue struct {
 
 func New() plugin.Plugin {
 	return &Plugin{
-		MutateHook: defaultBuildMutateHook,
-		FieldHook:  defaultFieldMutateHook,
+		MutateHook: DefaultBuildMutateHook,
+		FieldHook:  DefaultFieldMutateHook,
 	}
 }
 
@@ -81,120 +105,86 @@ func (m *Plugin) Name() string {
 	return "modelgen"
 }
 
-func (m *Plugin) MutateConfig(cfg *config.Config) error {
-	binder := cfg.NewBinder()
+// schemaTypesSorted returns schema.Types in a deterministic, name-sorted order.
+// Ranging over the map directly is iteration-order dependent, which makes
+// conflict-resolved Go model names unstable between runs: GraphQL types such as
+// FooBar and Foo_Bar both map to the Go name "FooBar", and whichever is visited
+// first keeps the unsuffixed name while the other becomes "FooBar0" (see
+// goModelName in codegen/templates).
+func schemaTypesSorted(schema *ast.Schema) []*ast.Definition {
+	names := make([]string, 0, len(schema.Types))
+	for name := range schema.Types {
+		names = append(names, name)
+	}
+	sort.Strings(names)
 
+	sorted := make([]*ast.Definition, 0, len(names))
+	for _, name := range names {
+		sorted = append(sorted, schema.Types[name])
+	}
+	return sorted
+}
+
+func (m *Plugin) MutateConfig(cfg *config.Config) error {
 	b := &ModelBuild{
 		PackageName: cfg.Model.Package,
 	}
 
-	for _, schemaType := range cfg.Schema.Types {
+	cfg.Directives["goEmbedInterface"] = config.DirectiveConfig{SkipRuntime: true}
+
+	binder := cfg.NewBinder()
+
+	// Generate Base structs for interfaces if embedded structs are enabled
+	embedder := newEmbeddedInterfaceGenerator(cfg, binder, nil, b)
+	specs, err := embedder.generateAllInterfaceBaseStructs()
+	if err != nil {
+		return err
+	}
+
+	for _, spec := range specs {
+		obj, err := m.buildBaseObjectFromSpec(cfg, binder, spec)
+		if err != nil {
+			return err
+		}
+		if obj != nil {
+			b.Models = append(b.Models, obj)
+		}
+	}
+
+	for _, schemaType := range schemaTypesSorted(cfg.Schema) {
+		userDefined := cfg.Models.UserDefined(schemaType.Name)
+		switch schemaType.Kind {
+		case ast.Interface, ast.Union:
+			if !userDefined {
+				it, err := m.getInterface(cfg, schemaType)
+				if err != nil {
+					return err
+				}
+				b.Interfaces = append(b.Interfaces, it)
+			}
+		}
+	}
+
+	for _, schemaType := range schemaTypesSorted(cfg.Schema) {
 		if cfg.Models.UserDefined(schemaType.Name) {
 			continue
 		}
 		switch schemaType.Kind {
-		case ast.Interface, ast.Union:
-			it := &Interface{
-				Description: schemaType.Description,
-				Name:        schemaType.Name,
-			}
-
-			b.Interfaces = append(b.Interfaces, it)
 		case ast.Object, ast.InputObject:
-			if schemaType == cfg.Schema.Query || schemaType == cfg.Schema.Mutation || schemaType == cfg.Schema.Subscription {
+			it, err := m.getObject(cfg, schemaType, b)
+			if err != nil {
+				return err
+			}
+			if it == nil {
 				continue
-			}
-			it := &Object{
-				Description: schemaType.Description,
-				Name:        schemaType.Name,
-			}
-			for _, implementor := range cfg.Schema.GetImplements(schemaType) {
-				it.Implements = append(it.Implements, implementor.Name)
-			}
-
-			for _, field := range schemaType.Fields {
-				var typ types.Type
-				fieldDef := cfg.Schema.Types[field.Type.Name()]
-
-				if cfg.Models.UserDefined(field.Type.Name()) {
-					var err error
-					typ, err = binder.FindTypeFromName(cfg.Models[field.Type.Name()].Model[0])
-					if err != nil {
-						return err
-					}
-				} else {
-					switch fieldDef.Kind {
-					case ast.Scalar:
-						// no user defined model, referencing a default scalar
-						typ = types.NewNamed(
-							types.NewTypeName(0, cfg.Model.Pkg(), "string", nil),
-							nil,
-							nil,
-						)
-
-					case ast.Interface, ast.Union:
-						// no user defined model, referencing a generated interface type
-						typ = types.NewNamed(
-							types.NewTypeName(0, cfg.Model.Pkg(), templates.ToGo(field.Type.Name()), nil),
-							types.NewInterfaceType([]*types.Func{}, []types.Type{}),
-							nil,
-						)
-
-					case ast.Enum:
-						// no user defined model, must reference a generated enum
-						typ = types.NewNamed(
-							types.NewTypeName(0, cfg.Model.Pkg(), templates.ToGo(field.Type.Name()), nil),
-							nil,
-							nil,
-						)
-
-					case ast.Object, ast.InputObject:
-						// no user defined model, must reference a generated struct
-						typ = types.NewNamed(
-							types.NewTypeName(0, cfg.Model.Pkg(), templates.ToGo(field.Type.Name()), nil),
-							types.NewStruct(nil, nil),
-							nil,
-						)
-
-					default:
-						panic(fmt.Errorf("unknown ast type %s", fieldDef.Kind))
-					}
-				}
-
-				name := field.Name
-				if nameOveride := cfg.Models[schemaType.Name].Fields[field.Name].FieldName; nameOveride != "" {
-					name = nameOveride
-				}
-
-				typ = binder.CopyModifiersFromAst(field.Type, typ)
-
-				if isStruct(typ) && (fieldDef.Kind == ast.Object || fieldDef.Kind == ast.InputObject) {
-					typ = types.NewPointer(typ)
-				}
-
-				f := &Field{
-					Name:        name,
-					Type:        typ,
-					Description: field.Description,
-					Tag:         `json:"` + field.Name + `"`,
-				}
-
-				if m.FieldHook != nil {
-					mf, err := m.FieldHook(schemaType, field, f)
-					if err != nil {
-						return fmt.Errorf("generror: field %v.%v: %w", it.Name, field.Name, err)
-					}
-					f = mf
-				}
-
-				it.Fields = append(it.Fields, f)
 			}
 
 			b.Models = append(b.Models, it)
 		case ast.Enum:
 			it := &Enum{
-				Name:        schemaType.Name,
-				Description: schemaType.Description,
+				Name:               schemaType.Name,
+				Description:        schemaType.Description,
+				OmitJSONMarshalers: cfg.OmitEnumJSONMarshalers,
 			}
 
 			for _, v := range schemaType.EnumValues {
@@ -209,18 +199,41 @@ func (m *Plugin) MutateConfig(cfg *config.Config) error {
 			b.Scalars = append(b.Scalars, schemaType.Name)
 		}
 	}
+
 	sort.Slice(b.Enums, func(i, j int) bool { return b.Enums[i].Name < b.Enums[j].Name })
 	sort.Slice(b.Models, func(i, j int) bool { return b.Models[i].Name < b.Models[j].Name })
-	sort.Slice(b.Interfaces, func(i, j int) bool { return b.Interfaces[i].Name < b.Interfaces[j].Name })
+	sort.Slice(
+		b.Interfaces,
+		func(i, j int) bool { return b.Interfaces[i].Name < b.Interfaces[j].Name },
+	)
+
+	// if we are not just turning all struct-type fields in generated structs into pointers, we need
+	// to at least
+	// check for cyclical relationships and recursive structs
+	if !cfg.StructFieldsAlwaysPointers {
+		findAndHandleCyclicalRelationships(b)
+	}
 
 	for _, it := range b.Enums {
-		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGo(it.Name))
+		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGoModelName(it.Name))
 	}
 	for _, it := range b.Models {
-		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGo(it.Name))
+		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGoModelName(it.Name))
 	}
 	for _, it := range b.Interfaces {
-		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGo(it.Name))
+		// On a given interface we want to keep a reference to all the models that implement it
+		for _, model := range b.Models {
+			for _, impl := range model.Implements {
+				if impl == it.Name {
+					// check if this isn't an implementation of an entity interface
+					if impl != "_Entity" {
+						// If this model has an implementation, add it to the Interface's Models
+						it.Models = append(it.Models, model)
+					}
+				}
+			}
+		}
+		cfg.Models.Add(it.Name, cfg.Model.ImportPath()+"."+templates.ToGoModelName(it.Name))
 	}
 	for _, it := range b.Scalars {
 		cfg.Models.Add(it, "github.com/99designs/gqlgen/graphql.String")
@@ -233,13 +246,36 @@ func (m *Plugin) MutateConfig(cfg *config.Config) error {
 	if m.MutateHook != nil {
 		b = m.MutateHook(b)
 	}
+	impls, getterErrs := implementations(b)
+	for model, modelImpls := range impls {
+		model.Implementations = modelImpls
+	}
+	// A custom template may declare other members than these checks know.
+	if cfg.Model.ModelTemplate == "" {
+		// Names first: a clash inside an interface explains the getter errors
+		// it causes in its implementations.
+		if err := checkGoNames(b); err != nil {
+			return err
+		}
+		if len(getterErrs) > 0 {
+			return getterErrs[0]
+		}
+	}
+	funcMap := templateFuncs(b)
+	newModelTemplate := modelTemplate
+	if cfg.Model.ModelTemplate != "" {
+		newModelTemplate = readModelTemplate(cfg.Model.ModelTemplate)
+	}
 
-	err := templates.Render(templates.Options{
+	err = templates.Render(templates.Options{
 		PackageName:     cfg.Model.Package,
 		Filename:        cfg.Model.Filename,
 		Data:            b,
 		GeneratedHeader: true,
 		Packages:        cfg.Packages,
+		Template:        newModelTemplate,
+		Funcs:           funcMap,
+		PruneOptions:    cfg.GetPruneOptions(),
 	})
 	if err != nil {
 		return err
@@ -252,8 +288,261 @@ func (m *Plugin) MutateConfig(cfg *config.Config) error {
 	return nil
 }
 
-// GoTagFieldHook applies the goTag directive to the generated Field f. When applying the Tag to the field, the field
-// name is used when no value argument is present.
+func (m *Plugin) generateFields(
+	cfg *config.Config,
+	schemaType *ast.Definition,
+	model *ModelBuild,
+) ([]*Field, error) {
+	binder := cfg.NewBinder()
+	embeddedGen := newEmbeddedInterfaceGenerator(cfg, binder, schemaType, model)
+
+	fields := make([]*Field, 0)
+	embeddedFieldMap := embeddedGen.generateEmbeddedFields(schemaType.Fields)
+
+	for _, field := range schemaType.Fields {
+		if embeddedField, isEmbedded := embeddedFieldMap[field.Name]; isEmbedded {
+			// First field of interface gets the embedded base struct
+			if embeddedField != nil {
+				fields = append(fields, embeddedField)
+			}
+			// Skip this field (either it's first with embedded field, or subsequent field from same
+			// interface)
+			continue
+		}
+
+		f, err := m.generateField(cfg, binder, schemaType, field)
+		if err != nil {
+			return nil, err
+		}
+
+		if f == nil {
+			continue
+		}
+
+		fields = append(fields, f)
+	}
+
+	fields = append(fields, getExtraFields(cfg, schemaType.Name)...)
+
+	return fields, nil
+}
+
+func (m *Plugin) generateField(
+	cfg *config.Config,
+	binder *config.Binder,
+	schemaType *ast.Definition,
+	field *ast.FieldDefinition,
+) (*Field, error) {
+	var typ types.Type
+	fieldDef := cfg.Schema.Types[field.Type.Name()]
+
+	if cfg.Models.UserDefined(field.Type.Name()) {
+		var err error
+		typ, err = binder.FindTypeFromName(cfg.Models[field.Type.Name()].Model[0])
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		switch fieldDef.Kind {
+		case ast.Scalar:
+			// no user defined model, referencing a default scalar
+			typ = types.NewNamed(
+				types.NewTypeName(0, cfg.Model.Pkg(), "string", nil),
+				nil,
+				nil,
+			)
+
+		case ast.Interface, ast.Union:
+			// no user defined model, referencing a generated interface type
+			typ = types.NewNamed(
+				types.NewTypeName(0, cfg.Model.Pkg(), templates.ToGo(field.Type.Name()), nil),
+				types.NewInterfaceType([]*types.Func{}, []types.Type{}),
+				nil,
+			)
+
+		case ast.Enum:
+			// no user defined model, must reference a generated enum
+			typ = types.NewNamed(
+				types.NewTypeName(0, cfg.Model.Pkg(), templates.ToGo(field.Type.Name()), nil),
+				nil,
+				nil,
+			)
+
+		case ast.Object, ast.InputObject:
+			// no user defined model, must reference a generated struct
+			typ = types.NewNamed(
+				types.NewTypeName(
+					0,
+					cfg.Model.Pkg(),
+					templates.ToGoModelName(field.Type.Name()),
+					nil,
+				),
+				types.NewStruct(nil, nil),
+				nil,
+			)
+
+		default:
+			panic(fmt.Errorf("unknown ast type %s", fieldDef.Kind))
+		}
+	}
+
+	name := templates.ToGo(field.Name)
+	if nameOverride := cfg.Models[schemaType.Name].Fields[field.Name].FieldName; nameOverride != "" {
+		name = nameOverride
+	}
+
+	typ = binder.CopyModifiersFromAst(field.Type, typ)
+
+	if cfg.StructFieldsAlwaysPointers {
+		if isStruct(typ) && (fieldDef.Kind == ast.Object || fieldDef.Kind == ast.InputObject) {
+			typ = types.NewPointer(typ)
+		}
+	}
+
+	// Replace to user-defined field type if provided.
+	if userDefinedType := cfg.Models[schemaType.Name].Fields[field.Name].Type; userDefinedType != "" {
+		typ = buildType(userDefinedType)
+	}
+
+	f := &Field{
+		Name:        field.Name,
+		GoName:      name,
+		Type:        typ,
+		Description: field.Description,
+		Tag:         getStructTagFromField(cfg, field),
+		Omittable: cfg.NullableInputOmittable && schemaType.Kind == ast.InputObject &&
+			!field.Type.NonNull,
+		IsResolver:    cfg.Models[schemaType.Name].Fields[field.Name].Resolver,
+		ForceGenerate: cfg.Models[schemaType.Name].Fields[field.Name].ForceGenerate,
+	}
+
+	if omittable := cfg.Models[schemaType.Name].Fields[field.Name].Omittable; omittable != nil {
+		f.Omittable = *omittable
+	}
+
+	if m.FieldHook != nil {
+		mf, err := m.FieldHook(schemaType, field, f)
+		if err != nil {
+			return nil, fmt.Errorf("generror: field %v.%v: %w", schemaType.Name, field.Name, err)
+		}
+
+		if mf == nil {
+			// the field hook wants to omit the field
+			return nil, nil
+		}
+
+		f = mf
+	}
+
+	if f.IsResolver && cfg.OmitResolverFields && !f.ForceGenerate {
+		return nil, nil
+	}
+
+	if f.Omittable {
+		if schemaType.Kind != ast.InputObject || field.Type.NonNull {
+			return nil, fmt.Errorf(
+				"generror: field %v.%v: omittable is only applicable to nullable input fields",
+				schemaType.Name,
+				field.Name,
+			)
+		}
+
+		omittableType, err := binder.FindTypeFromName(
+			"github.com/99designs/gqlgen/graphql.Omittable",
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		f.Type, err = binder.InstantiateType(omittableType, []types.Type{f.Type})
+		if err != nil {
+			return nil, fmt.Errorf("generror: field %v.%v: %w", schemaType.Name, field.Name, err)
+		}
+	}
+
+	return f, nil
+}
+
+func getExtraFields(cfg *config.Config, modelName string) []*Field {
+	modelcfg := cfg.Models[modelName]
+
+	extraFieldsCount := len(modelcfg.ExtraFields) + len(modelcfg.EmbedExtraFields)
+	if extraFieldsCount == 0 {
+		return nil
+	}
+
+	extraFields := make([]*Field, 0, extraFieldsCount)
+
+	makeExtraField := func(fname string, fspec config.ModelExtraField) *Field {
+		ftype := buildType(fspec.Type)
+
+		tag := `json:"-"`
+		if fspec.OverrideTags != "" {
+			tag = fspec.OverrideTags
+		}
+
+		return &Field{
+			Name:        fname,
+			GoName:      fname,
+			Type:        ftype,
+			Description: fspec.Description,
+			Tag:         tag,
+		}
+	}
+
+	if len(modelcfg.ExtraFields) > 0 {
+		for fname, fspec := range modelcfg.ExtraFields {
+			extraFields = append(extraFields, makeExtraField(fname, fspec))
+		}
+	}
+
+	if len(modelcfg.EmbedExtraFields) > 0 {
+		for _, fspec := range modelcfg.EmbedExtraFields {
+			extraFields = append(extraFields, makeExtraField("", fspec))
+		}
+	}
+
+	sort.Slice(extraFields, func(i, j int) bool {
+		if extraFields[i].Name == "" && extraFields[j].Name == "" {
+			return extraFields[i].Type.String() < extraFields[j].Type.String()
+		}
+
+		if extraFields[i].Name == "" {
+			return false
+		}
+
+		if extraFields[j].Name == "" {
+			return true
+		}
+
+		return extraFields[i].Name < extraFields[j].Name
+	})
+
+	return extraFields
+}
+
+func getStructTagFromField(cfg *config.Config, field *ast.FieldDefinition) string {
+	var tags []string
+
+	if !field.Type.NonNull &&
+		(cfg.EnableModelJsonOmitemptyTag == nil || *cfg.EnableModelJsonOmitemptyTag) {
+		tags = append(tags, "omitempty")
+	}
+
+	if !field.Type.NonNull &&
+		(cfg.EnableModelJsonOmitzeroTag == nil || *cfg.EnableModelJsonOmitzeroTag) {
+		tags = append(tags, "omitzero")
+	}
+
+	if len(tags) > 0 {
+		return `json:"` + field.Name + `,` + strings.Join(tags, ",") + `"`
+	}
+	return `json:"` + field.Name + `"`
+}
+
+// GoTagFieldHook prepends the goTag directive to the generated Field f.
+// When applying the Tag to the field, the field
+// name is used if no value argument is present.
 func GoTagFieldHook(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error) {
 	args := make([]string, 0)
 	for _, goTag := range fd.Directives.ForNames("goTag") {
@@ -276,13 +565,297 @@ func GoTagFieldHook(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Fie
 	}
 
 	if len(args) > 0 {
-		f.Tag = f.Tag + " " + strings.Join(args, " ")
+		f.Tag = removeDuplicateTags(f.Tag + " " + strings.Join(args, " "))
 	}
 
+	return f, nil
+}
+
+// splitTagsBySpace split tags by space, except when space is inside quotes
+func splitTagsBySpace(tagsString string) []string {
+	var tags []string
+	var currentTag string
+	inQuotes := false
+
+	for _, c := range tagsString {
+		if c == '"' {
+			inQuotes = !inQuotes
+		}
+		if c == ' ' && !inQuotes {
+			tags = append(tags, currentTag)
+			currentTag = ""
+		} else {
+			currentTag += string(c)
+		}
+	}
+	tags = append(tags, currentTag)
+
+	return tags
+}
+
+// containsInvalidSpace checks if the tagsString contains invalid space
+func containsInvalidSpace(valuesString string) bool {
+	// get rid of quotes
+	valuesString = strings.ReplaceAll(valuesString, "\"", "")
+	if strings.Contains(valuesString, ",") {
+		// split by comma,
+		values := strings.SplitSeq(valuesString, ",")
+		for value := range values {
+			if strings.TrimSpace(value) != value {
+				return true
+			}
+		}
+		return false
+	}
+	if strings.Contains(valuesString, ";") {
+		// split by semicolon, which is common in gorm
+		values := strings.SplitSeq(valuesString, ";")
+		for value := range values {
+			if strings.TrimSpace(value) != value {
+				return true
+			}
+		}
+		return false
+	}
+	// single value
+	if strings.TrimSpace(valuesString) != valuesString {
+		return true
+	}
+	return false
+}
+
+func removeDuplicateTags(t string) string {
+	processed := make(map[string]bool)
+	tt := splitTagsBySpace(t)
+	returnTags := ""
+
+	// iterate backwards through tags so appended goTag directives are prioritized
+	for _, v := range slices.Backward(tt) {
+		ti := v
+		// check if ti contains ":", and not contains any empty space. if not, tag is in wrong
+		// format
+		// correct example: json:"name"
+		if !strings.Contains(ti, ":") {
+			panic(
+				fmt.Errorf(
+					"wrong format of tags: %s. goTag directive should be in format: @goTag(key: \"something\", value:\"value\"), ",
+					t,
+				),
+			)
+		}
+
+		kv := strings.Split(ti, ":")
+		if len(kv) == 0 || processed[kv[0]] {
+			continue
+		}
+
+		key := kv[0]
+		value := strings.Join(kv[1:], ":")
+		processed[key] = true
+		if returnTags != "" {
+			returnTags = " " + returnTags
+		}
+
+		isContained := containsInvalidSpace(value)
+		if isContained {
+			panic(
+				fmt.Errorf(
+					"tag value should not contain any leading or trailing spaces: %s",
+					value,
+				),
+			)
+		}
+
+		returnTags = key + ":" + value + returnTags
+	}
+
+	return returnTags
+}
+
+// GoFieldHook is a noop
+// TODO: This will be removed in the next breaking release
+func GoFieldHook(td *ast.Definition, fd *ast.FieldDefinition, f *Field) (*Field, error) {
 	return f, nil
 }
 
 func isStruct(t types.Type) bool {
 	_, is := t.Underlying().(*types.Struct)
 	return is
+}
+
+// findAndHandleCyclicalRelationships checks for cyclical relationships between generated structs
+// and replaces them
+// with pointers. These relationships will produce compilation errors if they are not pointers.
+// Also handles recursive structs.
+func findAndHandleCyclicalRelationships(b *ModelBuild) {
+	for ii, structA := range b.Models {
+		for _, fieldA := range structA.Fields {
+			if strings.Contains(fieldA.Type.String(), "NotCyclicalA") {
+				fmt.Print()
+			}
+			if !isStruct(fieldA.Type) {
+				continue
+			}
+
+			// the field Type string will be in the form
+			// "github.com/99designs/gqlgen/codegen/testserver/followschema.LoopA"
+			// we only want the part after the last dot: "LoopA"
+			// this could lead to false positives, as we are only checking the name of the struct
+			// type, but these
+			// should be extremely rare, if it is even possible at all.
+			fieldAStructNameParts := strings.Split(fieldA.Type.String(), ".")
+			fieldAStructName := fieldAStructNameParts[len(fieldAStructNameParts)-1]
+
+			// find this struct type amongst the generated structs
+			for jj, structB := range b.Models {
+				if structB.Name != fieldAStructName {
+					continue
+				}
+
+				// check if structB contains a cyclical reference back to structA
+				var cyclicalReferenceFound bool
+				for _, fieldB := range structB.Fields {
+					if !isStruct(fieldB.Type) {
+						continue
+					}
+
+					fieldBStructNameParts := strings.Split(fieldB.Type.String(), ".")
+					fieldBStructName := fieldBStructNameParts[len(fieldBStructNameParts)-1]
+					if fieldBStructName == structA.Name {
+						cyclicalReferenceFound = true
+						fieldB.Type = types.NewPointer(fieldB.Type)
+						// keep looping in case this struct has additional fields of this type
+					}
+				}
+
+				// if this is a recursive struct (i.e. structA == structB), ensure that we only
+				// change this field to a pointer once
+				if cyclicalReferenceFound && ii != jj {
+					fieldA.Type = types.NewPointer(fieldA.Type)
+					break
+				}
+			}
+		}
+	}
+}
+
+func readModelTemplate(customModelTemplate string) string {
+	contentBytes, err := os.ReadFile(customModelTemplate)
+	if err != nil {
+		panic(err)
+	}
+	return string(contentBytes)
+}
+
+func (m *Plugin) getInterface(
+	cfg *config.Config,
+	schemaType *ast.Definition,
+) (*Interface, error) {
+	var fields []*Field
+	var err error
+	if !cfg.OmitGetters {
+		fields, err = m.generateFields(cfg, schemaType, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	it := &Interface{
+		Description: schemaType.Description,
+		Name:        schemaType.Name,
+		Implements:  schemaType.Interfaces,
+		Fields:      fields,
+		OmitCheck:   cfg.OmitInterfaceChecks,
+	}
+
+	// if the interface has a key directive as an entity interface, allow it to implement _Entity
+	if schemaType.Directives.ForName("key") != nil {
+		it.Implements = append(it.Implements, "_Entity")
+	}
+
+	return it, nil
+}
+
+func (m *Plugin) getObject(
+	cfg *config.Config,
+	schemaType *ast.Definition,
+	b *ModelBuild,
+) (*Object, error) {
+	if cfg.IsRoot(schemaType) {
+		if !cfg.OmitRootModels {
+			return &Object{
+				Description: schemaType.Description,
+				Name:        schemaType.Name,
+			}, nil
+		}
+
+		return nil, nil
+	}
+
+	fields, err := m.generateFields(cfg, schemaType, b)
+	if err != nil {
+		return nil, err
+	}
+
+	it := &Object{
+		Description: schemaType.Description,
+		Name:        schemaType.Name,
+		Fields:      fields,
+	}
+
+	// If Interface A implements interface B, and Interface C also implements interface B
+	// then both A and C have methods of B.
+	// The reason for checking unique is to prevent the same method B from being generated twice.
+	uniqueMap := map[string]bool{}
+	for _, implementor := range cfg.Schema.GetImplements(schemaType) {
+		if !uniqueMap[implementor.Name] {
+			it.Implements = append(it.Implements, implementor.Name)
+			uniqueMap[implementor.Name] = true
+		}
+		// for interface implements
+		for _, iface := range implementor.Interfaces {
+			if !uniqueMap[iface] {
+				it.Implements = append(it.Implements, iface)
+				uniqueMap[iface] = true
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (m *Plugin) buildBaseObjectFromSpec(
+	cfg *config.Config,
+	binder *config.Binder,
+	spec *baseStructSpec,
+) (*Object, error) {
+	fields := make([]*Field, 0)
+
+	for _, parentType := range spec.ParentEmbeddings {
+		fields = append(fields, &Field{
+			Name:   "",
+			GoName: "", // Empty GoName creates anonymous embedding
+			Type:   parentType,
+		})
+	}
+
+	// Generate fields from schema definitions
+	for _, fieldDef := range spec.FieldsToGenerate {
+		f, err := m.generateField(cfg, binder, spec.SchemaType, fieldDef)
+		if err != nil {
+			return nil, err
+		}
+		if f != nil {
+			fields = append(fields, f)
+		}
+	}
+
+	fields = append(fields, getExtraFields(cfg, spec.SchemaType.Name)...)
+
+	return &Object{
+		Description: spec.SchemaType.Description,
+		Name:        fmt.Sprintf("%s%s", cfg.EmbeddedStructsPrefix, spec.SchemaType.Name),
+		Fields:      fields,
+		Implements:  spec.ImplementsInterfaces,
+	}, nil
 }

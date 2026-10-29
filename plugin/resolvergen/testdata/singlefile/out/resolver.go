@@ -1,6 +1,6 @@
 package customresolver
 
-// THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
+// THIS CODE WILL BE UPDATED WITH SCHEMA CHANGES. PREVIOUS IMPLEMENTATION FOR SCHEMA CHANGES WILL BE KEPT IN THE COMMENT SECTION. IMPLEMENTATION FOR UNCHANGED SCHEMA WILL BE KEPT.
 
 import (
 	"context"
@@ -8,10 +8,12 @@ import (
 
 type CustomResolverType struct{}
 
+// Resolver is the resolver for the resolver field.
 func (r *queryCustomResolverType) Resolver(ctx context.Context) (*Resolver, error) {
 	panic("not implemented")
 }
 
+// Name is the resolver for the name field.
 func (r *resolverCustomResolverType) Name(ctx context.Context, obj *Resolver) (string, error) {
 	panic("not implemented")
 }
@@ -22,5 +24,7 @@ func (r *CustomResolverType) Query() QueryResolver { return &queryCustomResolver
 // Resolver returns ResolverResolver implementation.
 func (r *CustomResolverType) Resolver() ResolverResolver { return &resolverCustomResolverType{r} }
 
-type queryCustomResolverType struct{ *CustomResolverType }
-type resolverCustomResolverType struct{ *CustomResolverType }
+type (
+	queryCustomResolverType    struct{ *CustomResolverType }
+	resolverCustomResolverType struct{ *CustomResolverType }
+)

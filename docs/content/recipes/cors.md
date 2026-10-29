@@ -18,11 +18,11 @@ import (
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/99designs/gqlgen/example/starwars"
+	"github.com/99designs/gqlgen/_examples/starwars"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/cors"
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 	"github.com/99designs/gqlgen/graphql/playground"
 )
 
@@ -38,17 +38,18 @@ func main() {
 	}).Handler)
 
 
-    srv := handler.NewDefaultServer(starwars.NewExecutableSchema(starwars.NewResolver()))
-    srv.AddTransport(&transport.Websocket{
-        Upgrader: websocket.Upgrader{
-            CheckOrigin: func(r *http.Request) bool {
-                // Check against your desired domains here
-                 return r.Host == "example.org"
-            },
-            ReadBufferSize:  1024,
-            WriteBufferSize: 1024,
-        },
-    })
+	srv := handler.New(starwars.NewExecutableSchema(starwars.NewResolver()))
+
+	// Handle cross-origin checks in for websocket upgrade requests:
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: websocket.AcceptOptions{
+				OriginPatterns: []string{"https://example.org"},
+			},
+		},
+	})
+	srv.AddTransport(transport.POST{})
 
 	router.Handle("/", playground.Handler("Starwars", "/query"))
 	router.Handle("/query", srv)

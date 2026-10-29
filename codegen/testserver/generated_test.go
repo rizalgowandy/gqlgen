@@ -1,45 +1,43 @@
 package testserver
 
 import (
-	"fmt"
+	"bytes"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
-	eqgo "github.com/kevinmbeaulieu/eq-go/eq-go"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLayouts(t *testing.T) {
 	singlefileFSet := token.NewFileSet()
-	singlefilePkg := loadPackage("singlefile", singlefileFSet)
+	singlefilePkg := loadPackage(t, "singlefile", singlefileFSet)
 
 	followschemaFSet := token.NewFileSet()
-	followschemaPkg := loadPackage("followschema", followschemaFSet)
+	followschemaPkg := loadPackage(t, "followschema", followschemaFSet)
 
-	eq, msg := eqgo.PackagesEquivalent(singlefilePkg, singlefileFSet, followschemaPkg, followschemaFSet, nil)
-	if !eq {
-		// When msg is too long, require.True(...) omits it entirely.
-		// Therefore use fmt.Fprintln to print it manually instead.
-		fmt.Fprintln(os.Stderr, msg)
-		require.Fail(t, "Packages not equivalent")
+	singlefileDecls := collectDeclStrings(singlefilePkg.Files)
+	followschemaDecls := collectDeclStrings(followschemaPkg.Files)
+
+	// Normalize package names so that both sides can be compared.
+	for i, s := range followschemaDecls {
+		followschemaDecls[i] = strings.ReplaceAll(s, "followschema", "singlefile")
 	}
+
+	require.Equal(t, singlefileDecls, followschemaDecls)
 }
 
-func loadPackage(name string, fset *token.FileSet) *ast.Package {
+func loadPackage(t *testing.T, name string, fset *token.FileSet) *ast.Package {
 	path, err := filepath.Abs(name)
-	if err != nil {
-		panic(err)
-	}
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+	files, err := os.ReadDir(path)
+	require.NoError(t, err)
 
 	pkg := ast.Package{
 		Name:  name,
@@ -54,12 +52,32 @@ func loadPackage(name string, fset *token.FileSet) *ast.Package {
 			f.Name() == "models-gen.go" {
 			filename := filepath.Join(path, f.Name())
 			src, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 			pkg.Files[filename] = src
 		}
 	}
 
 	return &pkg
+}
+
+func collectDeclStrings(files map[string]*ast.File) []string {
+	printFSet := token.NewFileSet()
+
+	var strs []string
+	var buf bytes.Buffer
+	for _, f := range files {
+		for _, decl := range f.Decls {
+			if gd, ok := decl.(*ast.GenDecl); ok && gd.Tok == token.IMPORT {
+				continue
+			}
+			buf.Reset()
+			if err := printer.Fprint(&buf, printFSet, decl); err != nil {
+				continue
+			}
+			strs = append(strs, buf.String())
+		}
+	}
+
+	sort.Strings(strs)
+	return strs
 }

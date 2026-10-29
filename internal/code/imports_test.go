@@ -10,27 +10,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestExtractModuleName(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	modDir := filepath.Join(wd, "..", "..", "testdata")
+	content, err := os.ReadFile(filepath.Join(modDir, "gomod-with-leading-comments.mod"))
+	require.NoError(t, err)
+	assert.Equal(t, "github.com/99designs/gqlgen", extractModuleName(content))
+}
+
 func TestImportPathForDir(t *testing.T) {
 	wd, err := os.Getwd()
 
 	require.NoError(t, err)
 
 	assert.Equal(t, "github.com/99designs/gqlgen/internal/code", ImportPathForDir(wd))
-	assert.Equal(t, "github.com/99designs/gqlgen/api", ImportPathForDir(filepath.Join(wd, "..", "..", "api")))
+
+	assert.Equal(t, "github.com/99designs/gqlgen/internal/code", ImportPathForDir(wd))
+	assert.Equal(
+		t,
+		"github.com/99designs/gqlgen/api",
+		ImportPathForDir(filepath.Join(wd, "..", "..", "api")),
+	)
 
 	// doesnt contain go code, but should still give a valid import path
-	assert.Equal(t, "github.com/99designs/gqlgen/docs", ImportPathForDir(filepath.Join(wd, "..", "..", "docs")))
+	assert.Equal(
+		t,
+		"github.com/99designs/gqlgen/docs",
+		ImportPathForDir(filepath.Join(wd, "..", "..", "docs")),
+	)
 
 	// directory does not exist
-	assert.Equal(t, "github.com/99designs/gqlgen/dos", ImportPathForDir(filepath.Join(wd, "..", "..", "dos")))
+	assert.Equal(
+		t,
+		"github.com/99designs/gqlgen/dos",
+		ImportPathForDir(filepath.Join(wd, "..", "..", "dos")),
+	)
 
 	// out of module
-	assert.Equal(t, "", ImportPathForDir(filepath.Join(wd, "..", "..", "..")))
+	assert.Empty(t, ImportPathForDir(filepath.Join(wd, "..", "..", "..")))
 
 	if runtime.GOOS == "windows" {
-		assert.Equal(t, "", ImportPathForDir("C:/doesnotexist"))
+		assert.Empty(t, ImportPathForDir("C:/doesnotexist"))
 	} else {
-		assert.Equal(t, "", ImportPathForDir("/doesnotexist"))
+		assert.Empty(t, ImportPathForDir("/doesnotexist"))
 	}
 }
 
@@ -38,8 +62,11 @@ func TestNameForDir(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
-	assert.Equal(t, "tmp", NameForDir("/tmp"))
+	// A Go-free directory takes its base name; /tmp itself may hold stray Go files.
+	tmp := filepath.Join(t.TempDir(), "tmp")
+	require.NoError(t, os.Mkdir(tmp, 0o755))
+	assert.Equal(t, "tmp", NameForDir(tmp))
 	assert.Equal(t, "code", NameForDir(wd))
-	assert.Equal(t, "internal", NameForDir(wd+"/.."))
+	assert.Equal(t, "docs", NameForDir(wd+"/../../docs"))
 	assert.Equal(t, "main", NameForDir(wd+"/../.."))
 }

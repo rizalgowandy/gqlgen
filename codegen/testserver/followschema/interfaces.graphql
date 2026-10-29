@@ -5,10 +5,17 @@ extend type Query {
     noShapeTypedNil: Shape @makeTypedNil
     animal: Animal @makeTypedNil
     notAnInterface: BackedByInterface
+    dog: Dog
 }
 
 interface Animal {
     species: String!
+    size: Size!
+}
+
+type Size {
+    height: Int!
+    weight: Int!
 }
 
 type BackedByInterface {
@@ -19,11 +26,13 @@ type BackedByInterface {
 
 type Dog implements Animal {
     species: String!
+    size: Size!
     dogBreed: String!
 }
 
 type Cat implements Animal {
     species: String!
+    size: Size!
     catBreed: String!
 }
 
@@ -67,4 +76,16 @@ type ConcreteNodeA implements Node {
 type ConcreteNodeInterface implements Node {
     id: ID!
     child: Node!
+}
+
+interface Mammalian implements Animal {
+    species: String!
+    size: Size!
+}
+
+# Types with multiple interfaces are evaluated first in the case statement
+type Horse implements Mammalian & Animal {
+    species: String!
+    size: Size!
+    horseBreed: String!
 }

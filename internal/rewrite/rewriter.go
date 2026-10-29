@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/99designs/gqlgen/internal/code"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/99designs/gqlgen/internal/code"
 )
 
 type Rewriter struct {
@@ -56,19 +57,18 @@ func (r *Rewriter) getSource(start, end token.Pos) string {
 
 func (r *Rewriter) getFile(filename string) string {
 	if _, ok := r.files[filename]; !ok {
-		b, err := ioutil.ReadFile(filename)
+		b, err := os.ReadFile(filename)
 		if err != nil {
 			panic(fmt.Errorf("unable to load file, already exists: %w", err))
 		}
 
 		r.files[filename] = string(b)
-
 	}
 
 	return r.files[filename]
 }
 
-func (r *Rewriter) GetMethodBody(structname string, methodname string) string {
+func (r *Rewriter) GetPrevDecl(structname, methodname string) *ast.FuncDecl {
 	for _, f := range r.pkg.Syntax {
 		for _, d := range f.Decls {
 			d, isFunc := d.(*ast.FuncDecl)
@@ -89,17 +89,47 @@ func (r *Rewriter) GetMethodBody(structname string, methodname string) string {
 			if !ok {
 				continue
 			}
-
 			if ident.Name != structname {
 				continue
 			}
-
 			r.copied[d] = true
-
-			return r.getSource(d.Body.Pos()+1, d.Body.End()-1)
+			return d
 		}
 	}
+	return nil
+}
 
+func (r *Rewriter) GetMethodComment(structname, methodname string) string {
+	d := r.GetPrevDecl(structname, methodname)
+	if d != nil && d.Doc != nil {
+		comments := make([]string, len(d.Doc.List))
+
+		for i := range d.Doc.List {
+			c := d.Doc.List[i].Text
+
+			switch c[1] {
+			case '/':
+				//-style comment (no newline at the end)
+				c = c[2:]
+			case '*':
+				/*-style comment */
+				c = c[2 : len(c)-2]
+			}
+
+			comments[i] = c
+		}
+
+		return strings.Join(comments, "\n")
+	}
+
+	return ""
+}
+
+func (r *Rewriter) GetMethodBody(structname, methodname string) string {
+	d := r.GetPrevDecl(structname, methodname)
+	if d != nil {
+		return r.getSource(d.Body.Pos()+1, d.Body.End()-1)
+	}
 	return ""
 }
 

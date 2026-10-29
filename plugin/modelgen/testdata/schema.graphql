@@ -1,18 +1,25 @@
 directive @goTag(
     key: String!
     value: String
-) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+) repeatable on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+directive @goField(
+    forceResolver: Boolean
+    name: String
+    omittable: Boolean
+    type: String
+) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION | INTERFACE
 
 type Query {
-    thisShoudlntGetGenerated: Boolean
+    thisShouldntGetGenerated: Boolean
 }
 
 type Mutation {
-    thisShoudlntGetGenerated: Boolean
+    thisShouldntGetGenerated: Boolean
 }
 
 type Subscription {
-    thisShoudlntGetGenerated: Boolean
+    thisShouldntGetGenerated: Boolean
 }
 
 type MissingTypeNotNull implements MissingInterface & ExistingInterface {
@@ -34,6 +41,10 @@ type MissingTypeNullable implements MissingInterface & ExistingInterface {
 input MissingInput {
     name: String
     enum: MissingEnum
+    nonNullString: String!
+    nullString: String @goField(omittable: true)
+    nullEnum: MissingEnum @goField(omittable: true)
+    nullObject: ExistingInput @goField(omittable: true)
 }
 
 enum MissingEnum {
@@ -60,11 +71,12 @@ input ExistingInput {
 }
 
 type FieldMutationHook {
-    name: String @goTag(key :"anotherTag", value: "tag")
+    name: String @goTag(key: "anotherTag", value: "tag")
     enum: ExistingEnum @goTag(key: "yetAnotherTag", value: "12")
-    noVal: String @goTag(key: "yaml") @goTag(key : "repeated", value: "true")
-    repeated: String @goTag(key: "someTag", value: "value") @goTag(key : "repeated", value: "true")
-
+    noVal: String @goTag(key: "yaml") @goTag(key: "repeated", value: "true")
+    repeated: String
+        @goTag(key: "someTag", value: "value")
+        @goTag(key: "repeated", value: "true")
 }
 
 enum ExistingEnum {
@@ -76,7 +88,7 @@ interface ExistingInterface {
     name: String
 }
 
-union ExistingUnion = MissingTypeNotNull | MissingTypeNullable  | ExistingType
+union ExistingUnion = MissingTypeNotNull | MissingTypeNullable | ExistingType
 
 "TypeWithDescription is a type with a description"
 type TypeWithDescription {
@@ -97,11 +109,107 @@ interface InterfaceWithDescription {
 "UnionWithDescription is an union with a description"
 union UnionWithDescription = TypeWithDescription | ExistingType
 
-
 interface Foo_Barer {
     name: String!
 }
 
-type _Foo_Barr implements  Foo_Barer {
+type _Foo_Barr implements Foo_Barer {
     name: String!
+}
+
+# https://spec.graphql.org/October2021/#sec-Interfaces
+interface A {
+    a: String!
+}
+
+interface B {
+    b: Int!
+}
+
+interface C implements A {
+    a: String!
+    c: Boolean!
+}
+
+interface D implements A & B {
+    a: String!
+    b: Int!
+    d: String
+}
+
+type CDImplemented implements C & D & A & B {
+    a: String!
+    b: Int!
+    c: Boolean!
+    d: String
+}
+
+type CyclicalA {
+    field_one: CyclicalB
+    field_two: CyclicalB
+    field_three: CyclicalB
+    field_four: String!
+}
+
+type CyclicalB {
+    field_one: CyclicalA
+    field_two: CyclicalA
+    field_three: CyclicalA
+    field_four: CyclicalA
+    field_five: String!
+}
+
+type NotCyclicalA {
+    FieldOne: String!
+    FieldTwo: Int!
+}
+
+type NotCyclicalB {
+    FieldOne: String!
+    FieldTwo: NotCyclicalA!
+}
+
+type Recursive {
+    FieldOne: Recursive!
+    FieldTwo: Recursive!
+    FieldThree: Recursive!
+    FieldFour: String!
+}
+
+type RenameFieldTest {
+    badName: String!
+    otherField: String!
+}
+
+interface ArrayOfA {
+    trickyField: [A!]!
+    trickyFieldPointer: [A]
+}
+
+type ImplArrayOfA implements ArrayOfA {
+    trickyField: [CDImplemented!]!
+    trickyFieldPointer: [CDImplemented]
+}
+
+interface X {
+    Id: String! @goField(name: "Id")
+}
+
+type Xer implements X {
+    Id: String! @goField(name: "Id")
+    Name: String!
+}
+
+type ExtraFieldsTest {
+    SchemaField: String!
+}
+
+type OmitEmptyJsonTagTest {
+    ValueNonNil: String!
+    Value: String
+}
+
+type OmitZeroJSONTagTest {
+    ValueNonNil: String!
+    Value: String
 }

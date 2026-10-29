@@ -5,15 +5,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestTime(t *testing.T) {
 	resolvers := &Stub{}
 
-	c := client.New(handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers})))
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
+	c := client.New(srv)
 
 	resolvers.QueryResolver.User = func(ctx context.Context, id int) (user *User, e error) {
 		return &User{}, nil
@@ -40,7 +44,12 @@ func TestTime(t *testing.T) {
 		}
 
 		err := c.Post(`query { user(id: 1) { created } }`, &resp)
-		require.EqualError(t, err, `[{"message":"must not be null","path":["user","created"]}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"cannot return null for non-null field User.created (Time!): `+
+				`the marshaler returned null for a non-nil value","path":["user","created"]}]`,
+		)
 	})
 
 	t.Run("with values", func(t *testing.T) {

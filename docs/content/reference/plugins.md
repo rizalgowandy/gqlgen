@@ -10,15 +10,17 @@ default plugins you will need to create your own entrypoint:
 
 ## Using a plugin
 
+To use a plugin during code generation, you need to create a new entry point. Create `generate.go` in the same folder as `resolver.go` with the following code:
+
 ```go
-// +build ignore
+// go:build ignore
 
 package main
 
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -46,6 +48,10 @@ func main() {
 }
 
 ```
+
+In `resolver.go`, add `//go:generate go run generate.go` (or replace `//go:generate go tool gqlgen` if you have it there).
+
+Now you can run `go generate ./...` to generate code using your plugin.
 
 ## Writing a plugin
 

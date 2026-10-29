@@ -19,4 +19,19 @@ models:
     model: github.com/99designs/gqlgen/plugin/modelgen/out.ExistingUnion
   ExistingType:
     model: github.com/99designs/gqlgen/plugin/modelgen/out.ExistingType
-
+  RenameFieldTest:
+    fields:
+      badName:
+        fieldName: GOODnaME
+  ExtraFieldsTest:
+    extraFields:
+      FieldInternalType:
+        description: "Internal field"
+        type: github.com/99designs/gqlgen/plugin/modelgen/internal/extrafields.Type
+      FieldStringPtr:
+        type: "*string"
+      FieldInt:
+        type: "int64"
+        overrideTags: 'json:"field_int_tag"'
+      FieldIntSlice:
+        type: "[]int64"

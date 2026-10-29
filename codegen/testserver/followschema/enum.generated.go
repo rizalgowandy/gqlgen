@@ -17,37 +17,52 @@ import (
 
 // endregion ***************************** args.gotpl *****************************
 
-// region    ************************** directives.gotpl **************************
-
-// endregion ************************** directives.gotpl **************************
-
 // region    **************************** field.gotpl *****************************
 
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputInputWithEnumValue(ctx context.Context, obj interface{}) (InputWithEnumValue, error) {
+func (ec *executionContext) unmarshalInputInputWithEnumValue(ctx context.Context, obj any) (InputWithEnumValue, error) {
 	var it InputWithEnumValue
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	for k, v := range asMap {
+	fieldsInOrder := [...]string{"enum"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
 		switch k {
 		case "enum":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enum"))
-			it.Enum, err = ec.unmarshalNEnumTest2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEnumTest(ctx, v)
+			data, err := ec.unmarshalNEnumTest2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEnumTest(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Enum = data
 		}
 	}
-
 	return it, nil
+}
+
+// UnmarshalInputWithEnumValue unmarshals raw into the InputWithEnumValue input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalInputWithEnumValue(ctx context.Context, raw any) (InputWithEnumValue, error) {
+	var out InputWithEnumValue
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "InputWithEnumValue", raw, &out)
+	return out, err
 }
 
 // endregion **************************** input.gotpl *****************************
@@ -62,7 +77,7 @@ func (ec *executionContext) unmarshalInputInputWithEnumValue(ctx context.Context
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNEnumTest2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEnumTest(ctx context.Context, v interface{}) (EnumTest, error) {
+func (ec *executionContext) unmarshalNEnumTest2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEnumTest(ctx context.Context, v any) (EnumTest, error) {
 	var res EnumTest
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -72,7 +87,7 @@ func (ec *executionContext) marshalNEnumTest2githubᚗcomᚋ99designsᚋgqlgen�
 	return v
 }
 
-func (ec *executionContext) unmarshalOInputWithEnumValue2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐInputWithEnumValue(ctx context.Context, v interface{}) (*InputWithEnumValue, error) {
+func (ec *executionContext) unmarshalOInputWithEnumValue2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐInputWithEnumValue(ctx context.Context, v any) (*InputWithEnumValue, error) {
 	if v == nil {
 		return nil, nil
 	}

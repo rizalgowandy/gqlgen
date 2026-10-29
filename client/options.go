@@ -3,10 +3,10 @@ package client
 import "net/http"
 
 // Var adds a variable into the outgoing request
-func Var(name string, value interface{}) Option {
+func Var(name string, value any) Option {
 	return func(bd *Request) {
 		if bd.Variables == nil {
-			bd.Variables = map[string]interface{}{}
+			bd.Variables = map[string]any{}
 		}
 
 		bd.Variables[name] = value
@@ -21,13 +21,14 @@ func Operation(name string) Option {
 }
 
 // Extensions sets the extensions to be sent with the outgoing request
-func Extensions(extensions map[string]interface{}) Option {
+func Extensions(extensions map[string]any) Option {
 	return func(bd *Request) {
 		bd.Extensions = extensions
 	}
 }
 
-// Path sets the url that this request will be made against, useful if you are mounting your entire router
+// Path sets the url that this request will be made against, useful if you are mounting your entire
+// router
 // and need to specify the url to the graphql endpoint.
 func Path(url string) Option {
 	return func(bd *Request) {
@@ -35,8 +36,9 @@ func Path(url string) Option {
 	}
 }
 
-// AddHeader adds a header to the outgoing request. This is useful for setting expected Authentication headers for example.
-func AddHeader(key string, value string) Option {
+// AddHeader adds a header to the outgoing request. This is useful for setting expected
+// Authentication headers for example.
+func AddHeader(key, value string) Option {
 	return func(bd *Request) {
 		bd.HTTP.Header.Add(key, value)
 	}

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"errors"
 	"go/types"
 	"path/filepath"
 	"strings"
@@ -10,8 +10,15 @@ import (
 )
 
 type PackageConfig struct {
-	Filename string `yaml:"filename,omitempty"`
-	Package  string `yaml:"package,omitempty"`
+	Filename      string          `yaml:"filename,omitempty"`
+	Package       string          `yaml:"package,omitempty"`
+	Version       int             `yaml:"version,omitempty"`
+	ModelTemplate string          `yaml:"model_template,omitempty"`
+	Options       map[string]bool `yaml:"options,omitempty"`
+	// RepresentationNames is federation-only: it names the representation
+	// input of a type, keyed by the type's name, in place of
+	// <Type>Representation. Used with the entity_resolver_per_entity option.
+	RepresentationNames map[string]string `yaml:"representation_names,omitempty"`
 }
 
 func (c *PackageConfig) ImportPath() string {
@@ -41,13 +48,15 @@ func (c *PackageConfig) IsDefined() bool {
 
 func (c *PackageConfig) Check() error {
 	if strings.ContainsAny(c.Package, "./\\") {
-		return fmt.Errorf("package should be the output package name only, do not include the output filename")
+		return errors.New(
+			"package should be the output package name only, do not include the output filename",
+		)
 	}
 	if c.Filename == "" {
-		return fmt.Errorf("filename must be specified")
+		return errors.New("filename must be specified")
 	}
 	if !strings.HasSuffix(c.Filename, ".go") {
-		return fmt.Errorf("filename should be path to a go source file")
+		return errors.New("filename should be path to a go source file")
 	}
 
 	c.Filename = abs(c.Filename)

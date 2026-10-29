@@ -17,60 +17,94 @@ import (
 
 // endregion ***************************** args.gotpl *****************************
 
-// region    ************************** directives.gotpl **************************
-
-// endregion ************************** directives.gotpl **************************
-
 // region    **************************** field.gotpl *****************************
 
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputNestedInput(ctx context.Context, obj interface{}) (NestedInput, error) {
+func (ec *executionContext) unmarshalInputNestedInput(ctx context.Context, obj any) (NestedInput, error) {
 	var it NestedInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	for k, v := range asMap {
+	fieldsInOrder := [...]string{"field"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
 		switch k {
 		case "field":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
-			it.Field, err = ec.unmarshalNEmail2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEmail(ctx, v)
+			data, err := ec.unmarshalNEmail2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEmail(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Field = data
 		}
 	}
-
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSpecialInput(ctx context.Context, obj interface{}) (SpecialInput, error) {
+// UnmarshalNestedInput unmarshals raw into the NestedInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalNestedInput(ctx context.Context, raw any) (NestedInput, error) {
+	var out NestedInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "NestedInput", raw, &out)
+	return out, err
+}
+
+func (ec *executionContext) unmarshalInputSpecialInput(ctx context.Context, obj any) (SpecialInput, error) {
 	var it SpecialInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	for k, v := range asMap {
+	fieldsInOrder := [...]string{"nesting"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
 		switch k {
 		case "nesting":
-			var err error
-
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nesting"))
-			it.Nesting, err = ec.unmarshalNNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedInput(ctx, v)
+			data, err := ec.unmarshalNNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
+			it.Nesting = data
 		}
 	}
-
 	return it, nil
+}
+
+// UnmarshalSpecialInput unmarshals raw into the SpecialInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalSpecialInput(ctx context.Context, raw any) (SpecialInput, error) {
+	var out SpecialInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "SpecialInput", raw, &out)
+	return out, err
 }
 
 // endregion **************************** input.gotpl *****************************
@@ -85,7 +119,7 @@ func (ec *executionContext) unmarshalInputSpecialInput(ctx context.Context, obj 
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNEmail2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEmail(ctx context.Context, v interface{}) (Email, error) {
+func (ec *executionContext) unmarshalNEmail2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐEmail(ctx context.Context, v any) (Email, error) {
 	var res Email
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -95,12 +129,12 @@ func (ec *executionContext) marshalNEmail2githubᚗcomᚋ99designsᚋgqlgenᚋco
 	return v
 }
 
-func (ec *executionContext) unmarshalNNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedInput(ctx context.Context, v interface{}) (*NestedInput, error) {
+func (ec *executionContext) unmarshalNNestedInput2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐNestedInput(ctx context.Context, v any) (*NestedInput, error) {
 	res, err := ec.unmarshalInputNestedInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNSpecialInput2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐSpecialInput(ctx context.Context, v interface{}) (SpecialInput, error) {
+func (ec *executionContext) unmarshalNSpecialInput2githubᚗcomᚋ99designsᚋgqlgenᚋcodegenᚋtestserverᚋfollowschemaᚐSpecialInput(ctx context.Context, v any) (SpecialInput, error) {
 	res, err := ec.unmarshalInputSpecialInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }

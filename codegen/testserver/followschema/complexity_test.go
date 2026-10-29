@@ -4,17 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestComplexityCollisions(t *testing.T) {
 	resolvers := &Stub{}
 
-	srv := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers}))
-
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
 	c := client.New(srv)
 
 	resolvers.QueryResolver.Overlapping = func(ctx context.Context) (fields *OverlappingFields, e error) {
@@ -51,7 +53,8 @@ func TestComplexityFuncs(t *testing.T) {
 	cfg.Complexity.OverlappingFields.Foo = func(childComplexity int) int { return 1000 }
 	cfg.Complexity.OverlappingFields.NewFoo = func(childComplexity int) int { return 5 }
 
-	srv := handler.NewDefaultServer(NewExecutableSchema(cfg))
+	srv := handler.New(NewExecutableSchema(cfg))
+	srv.AddTransport(transport.POST{})
 	srv.Use(extension.FixedComplexityLimit(10))
 	c := client.New(srv)
 
@@ -70,11 +73,15 @@ func TestComplexityFuncs(t *testing.T) {
 		}
 
 		var resp struct {
-			Overlapping interface{}
+			Overlapping any
 		}
 		err := c.Post(`query { overlapping { oneFoo, twoFoo, oldFoo, newFoo, new_foo } }`, &resp)
 
-		require.EqualError(t, err, `[{"message":"operation has complexity 2012, which exceeds the limit of 10","extensions":{"code":"COMPLEXITY_LIMIT_EXCEEDED"}}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"operation has complexity 2012, which exceeds the limit of 10","extensions":{"code":"COMPLEXITY_LIMIT_EXCEEDED"}}]`,
+		)
 		require.False(t, ran)
 	})
 
@@ -89,7 +96,7 @@ func TestComplexityFuncs(t *testing.T) {
 		}
 
 		var resp struct {
-			Overlapping interface{}
+			Overlapping any
 		}
 		c.MustPost(`query { overlapping { newFoo } }`, &resp)
 
@@ -106,14 +113,18 @@ func TestComplexityFuncs(t *testing.T) {
 			}, nil
 		}
 
-		var resp interface{}
+		var resp any
 		err := c.Post(`query {
 			a: overlapping { newFoo },
 			b: overlapping { newFoo },
 			c: overlapping { newFoo },
 		}`, &resp)
 
-		require.EqualError(t, err, `[{"message":"operation has complexity 18, which exceeds the limit of 10","extensions":{"code":"COMPLEXITY_LIMIT_EXCEEDED"}}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"operation has complexity 18, which exceeds the limit of 10","extensions":{"code":"COMPLEXITY_LIMIT_EXCEEDED"}}]`,
+		)
 		require.False(t, ran)
 	})
 }

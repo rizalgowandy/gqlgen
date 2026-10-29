@@ -14,7 +14,7 @@ func TestPackageConfig(t *testing.T) {
 
 		require.NoError(t, p.Check())
 
-		require.Equal(t, p.Package, "config_test_data")
+		require.Equal(t, "config_test_data", p.Package)
 		require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 		require.Equal(t, "config_test_data", p.Pkg().Name())
@@ -30,7 +30,7 @@ func TestPackageConfig(t *testing.T) {
 
 		require.NoError(t, p.Check())
 
-		require.Equal(t, p.Package, "wololo")
+		require.Equal(t, "wololo", p.Package)
 		require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 		require.Equal(t, "wololo", p.Pkg().Name())
@@ -46,13 +46,13 @@ func TestPackageConfig(t *testing.T) {
 
 		require.EqualError(t, p.Check(), "filename must be specified")
 
-		require.Equal(t, "", p.Package)
-		require.Equal(t, "", p.ImportPath())
+		require.Empty(t, p.Package)
+		require.Empty(t, p.ImportPath())
 
 		require.Nil(t, p.Pkg())
 
-		require.Equal(t, "", p.Filename)
-		require.Equal(t, "", p.Dir())
+		require.Empty(t, p.Filename)
+		require.Empty(t, p.Dir())
 	})
 
 	t.Run("when given invalid filename", func(t *testing.T) {
@@ -66,6 +66,10 @@ func TestPackageConfig(t *testing.T) {
 		p := PackageConfig{Filename: "foo.go", Package: "foo/foo.go"}
 		require.True(t, p.IsDefined())
 
-		require.EqualError(t, p.Check(), "package should be the output package name only, do not include the output filename")
+		require.EqualError(
+			t,
+			p.Check(),
+			"package should be the output package name only, do not include the output filename",
+		)
 	})
 }

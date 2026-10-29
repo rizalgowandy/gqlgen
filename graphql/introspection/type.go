@@ -53,18 +53,18 @@ func (t *Type) Name() *string {
 	return &t.def.Name
 }
 
-func (t *Type) Description() string {
-	if t.def == nil {
-		return ""
+func (t *Type) Description() *string {
+	if t.def == nil || t.def.Description == "" {
+		return nil
 	}
-	return t.def.Description
+	return &t.def.Description
 }
 
 func (t *Type) Fields(includeDeprecated bool) []Field {
 	if t.def == nil || (t.def.Kind != ast.Object && t.def.Kind != ast.Interface) {
 		return []Field{}
 	}
-	fields := []Field{}
+	fields := make([]Field, 0, len(t.def.Fields))
 	for _, f := range t.def.Fields {
 		if strings.HasPrefix(f.Name, "__") {
 			continue
@@ -74,19 +74,20 @@ func (t *Type) Fields(includeDeprecated bool) []Field {
 			continue
 		}
 
-		var args []InputValue
+		args := make([]InputValue, 0, len(f.Arguments))
 		for _, arg := range f.Arguments {
 			args = append(args, InputValue{
 				Type:         WrapTypeFromType(t.schema, arg.Type),
 				Name:         arg.Name,
-				Description:  arg.Description,
+				description:  arg.Description,
 				DefaultValue: defaultValue(arg.DefaultValue),
+				deprecation:  arg.Directives.ForName("deprecated"),
 			})
 		}
 
 		fields = append(fields, Field{
 			Name:        f.Name,
-			Description: f.Description,
+			description: f.Description,
 			Args:        args,
 			Type:        WrapTypeFromType(t.schema, f.Type),
 			deprecation: f.Directives.ForName("deprecated"),
@@ -95,21 +96,31 @@ func (t *Type) Fields(includeDeprecated bool) []Field {
 	return fields
 }
 
+// InputFields returns every input field of an input object type, including
+// deprecated ones. Introspection reports VisibleInputFields instead.
 func (t *Type) InputFields() []InputValue {
 	if t.def == nil || t.def.Kind != ast.InputObject {
 		return []InputValue{}
 	}
 
-	res := []InputValue{}
+	res := make([]InputValue, 0, len(t.def.Fields))
 	for _, f := range t.def.Fields {
 		res = append(res, InputValue{
 			Name:         f.Name,
-			Description:  f.Description,
+			description:  f.Description,
 			Type:         WrapTypeFromType(t.schema, f.Type),
 			DefaultValue: defaultValue(f.DefaultValue),
+			deprecation:  f.Directives.ForName("deprecated"),
 		})
 	}
 	return res
+}
+
+// VisibleInputFields returns the input fields that __Type.inputFields reports:
+// all of InputFields when includeDeprecated is true, otherwise only those not
+// marked @deprecated.
+func (t *Type) VisibleInputFields(includeDeprecated bool) []InputValue {
+	return visibleInputValues(t.InputFields(), includeDeprecated)
 }
 
 func defaultValue(value *ast.Value) *string {
@@ -121,11 +132,11 @@ func defaultValue(value *ast.Value) *string {
 }
 
 func (t *Type) Interfaces() []Type {
-	if t.def == nil || t.def.Kind != ast.Object {
+	if t.def == nil || (t.def.Kind != ast.Object && t.def.Kind != ast.Interface) {
 		return []Type{}
 	}
 
-	res := []Type{}
+	res := make([]Type, 0, len(t.def.Interfaces))
 	for _, intf := range t.def.Interfaces {
 		res = append(res, *WrapTypeFromDef(t.schema, t.schema.Types[intf]))
 	}
@@ -138,8 +149,9 @@ func (t *Type) PossibleTypes() []Type {
 		return []Type{}
 	}
 
-	res := []Type{}
-	for _, pt := range t.schema.GetPossibleTypes(t.def) {
+	possible := t.schema.GetPossibleTypes(t.def)
+	res := make([]Type, 0, len(possible))
+	for _, pt := range possible {
 		res = append(res, *WrapTypeFromDef(t.schema, pt))
 	}
 	return res
@@ -150,7 +162,7 @@ func (t *Type) EnumValues(includeDeprecated bool) []EnumValue {
 		return []EnumValue{}
 	}
 
-	res := []EnumValue{}
+	res := make([]EnumValue, 0, len(t.def.EnumValues))
 	for _, val := range t.def.EnumValues {
 		if !includeDeprecated && val.Directives.ForName("deprecated") != nil {
 			continue
@@ -158,7 +170,7 @@ func (t *Type) EnumValues(includeDeprecated bool) []EnumValue {
 
 		res = append(res, EnumValue{
 			Name:        val.Name,
-			Description: val.Description,
+			description: val.Description,
 			deprecation: val.Directives.ForName("deprecated"),
 		})
 	}
@@ -177,4 +189,29 @@ func (t *Type) OfType() *Type {
 		return WrapTypeFromType(t.schema, &cpy)
 	}
 	return WrapTypeFromType(t.schema, t.typ.Elem)
+}
+
+func (t *Type) SpecifiedByURL() *string {
+	if t.def == nil {
+		return nil
+	}
+	directive := t.def.Directives.ForName("specifiedBy")
+	if t.def.Kind != ast.Scalar || directive == nil {
+		return nil
+	}
+	// def: directive @specifiedBy(url: String!) on SCALAR
+	// the argument "url" is required.
+	url := directive.Arguments.ForName("url")
+	return &url.Value.Raw
+}
+
+func (t *Type) IsOneOf() bool {
+	if t.def == nil {
+		return false
+	}
+	directive := t.def.Directives.ForName("oneOf")
+	if t.def.Kind != ast.InputObject || directive == nil {
+		return false
+	}
+	return true
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -17,14 +17,16 @@ type fileFormDataMap struct {
 	file   *os.File
 }
 
-func findFiles(parentMapKey string, variables map[string]interface{}) []*fileFormDataMap {
+func findFiles(parentMapKey string, variables map[string]any) []*fileFormDataMap {
 	files := []*fileFormDataMap{}
 	for key, value := range variables {
-		if v, ok := value.(map[string]interface{}); ok {
+		if v, ok := value.(map[string]any); ok {
 			files = append(files, findFiles(parentMapKey+"."+key, v)...)
-		} else if v, ok := value.([]map[string]interface{}); ok {
+		} else if v, ok := value.([]map[string]any); ok {
 			for i, arr := range v {
-				files = append(files, findFiles(fmt.Sprintf(`%s.%s.%d`, parentMapKey, key, i), arr)...)
+				files = append(
+					files,
+					findFiles(fmt.Sprintf(`%s.%s.%d`, parentMapKey, key, i), arr)...)
 			}
 		} else if v, ok := value.([]*os.File); ok {
 			for i, file := range v {
@@ -50,12 +52,12 @@ func WithFiles() Option {
 		bodyBuf := &bytes.Buffer{}
 		bodyWriter := multipart.NewWriter(bodyBuf)
 
-		//-b7955bd2e1d17b67ac157b9e9ddb6238888caefc6f3541920a1debad284d
+		// -b7955bd2e1d17b67ac157b9e9ddb6238888caefc6f3541920a1debad284d
 		// Content-Disposition: form-data; name="operations"
 		//
 		// {"query":"mutation ($input: Input!) {}","variables":{"input":{"file":{}}}
 		requestBody, _ := json.Marshal(bd)
-		bodyWriter.WriteField("operations", string(requestBody))
+		_ = bodyWriter.WriteField("operations", string(requestBody))
 
 		// --b7955bd2e1d17b67ac157b9e9ddb6238888caefc6f3541920a1debad284d
 		// Content-Disposition: form-data; name="map"
@@ -86,18 +88,22 @@ func WithFiles() Option {
 			}
 		}
 		if len(filesGroup) > 0 {
-			mapDataFiles := []string{}
+			mapDataFiles := make([]string, 0, len(filesGroup))
 
 			for i, fileData := range filesGroup {
 				mapDataFiles = append(
 					mapDataFiles,
-					fmt.Sprintf(`"%d":[%s]`, i, strings.Join(collect(fileData, wrapMapKeyInQuotes), ",")),
+					fmt.Sprintf(
+						`"%d":[%s]`,
+						i,
+						strings.Join(collect(fileData, wrapMapKeyInQuotes), ","),
+					),
 				)
 			}
 
 			mapData = `{` + strings.Join(mapDataFiles, ",") + `}`
 		}
-		bodyWriter.WriteField("map", mapData)
+		_ = bodyWriter.WriteField("map", mapData)
 
 		// --b7955bd2e1d17b67ac157b9e9ddb6238888caefc6f3541920a1debad284d
 		// Content-Disposition: form-data; name="0"; filename="tempFile"
@@ -107,15 +113,18 @@ func WithFiles() Option {
 		//
 		for i, fileData := range filesGroup {
 			h := make(textproto.MIMEHeader)
-			h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%d"; filename="%s"`, i, fileData[0].file.Name()))
-			b, _ := ioutil.ReadFile(fileData[0].file.Name())
+			h.Set(
+				"Content-Disposition",
+				fmt.Sprintf(`form-data; name="%d"; filename="%s"`, i, fileData[0].file.Name()),
+			)
+			b, _ := os.ReadFile(fileData[0].file.Name())
 			h.Set("Content-Type", http.DetectContentType(b))
 			ff, _ := bodyWriter.CreatePart(h)
 			ff.Write(b)
 		}
 		bodyWriter.Close()
 
-		bd.HTTP.Body = ioutil.NopCloser(bodyBuf)
+		bd.HTTP.Body = io.NopCloser(bodyBuf)
 		bd.HTTP.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 	}
 }

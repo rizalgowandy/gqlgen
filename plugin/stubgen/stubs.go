@@ -1,18 +1,21 @@
 package stubgen
 
 import (
+	_ "embed"
 	"path/filepath"
 	"syscall"
-
-	"github.com/99designs/gqlgen/internal/code"
 
 	"github.com/99designs/gqlgen/codegen"
 	"github.com/99designs/gqlgen/codegen/config"
 	"github.com/99designs/gqlgen/codegen/templates"
+	"github.com/99designs/gqlgen/internal/code"
 	"github.com/99designs/gqlgen/plugin"
 )
 
-func New(filename string, typename string) plugin.Plugin {
+//go:embed stubs.gotpl
+var stubsTemplate string
+
+func New(filename, typename string) plugin.Plugin {
 	return &Plugin{filename: filename, typeName: typename}
 }
 
@@ -51,6 +54,8 @@ func (m *Plugin) GenerateCode(data *codegen.Data) error {
 		},
 		GeneratedHeader: true,
 		Packages:        data.Config.Packages,
+		Template:        stubsTemplate,
+		PruneOptions:    data.Config.GetPruneOptions(),
 	})
 }
 

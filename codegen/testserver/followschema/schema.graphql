@@ -5,7 +5,13 @@ directive @goModel(
 directive @goField(
     forceResolver: Boolean
     name: String
+    omittable: Boolean
+    type: String
 ) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+directive @defer(
+    if: Boolean = true
+    label: String
+) on FRAGMENT_SPREAD | INLINE_FRAGMENT
 
 type Query {
     invalidIdentifier: InvalidIdentifier
@@ -19,9 +25,11 @@ type Query {
     nullableArg(arg: Int = 123): String
     inputSlice(arg: [String!]!): Boolean!
     inputNullableSlice(arg: [String!]): Boolean!
+    inputOmittable(arg: OmittableInput!): String!
     shapeUnion: ShapeUnion!
     autobind: Autobind
     deprecatedField: String! @deprecated(reason: "test deprecated directive")
+    fieldWithDeprecatedArg(oldArg: Int @deprecated(reason: "old arg"), newArg: Int): String
 }
 
 type Subscription {
@@ -29,11 +37,17 @@ type Subscription {
     initPayload: String!
 }
 
+type Pet {
+    id: Int!
+    friends(limit: Int): [Pet!] @goField(forceResolver: true)
+}
+
 type User {
     id: Int!
     friends: [User!]! @goField(forceResolver: true)
     created: Time!
     updated: Time
+    pets(limit: Int): [Pet!] @goField(forceResolver: true)
 }
 
 type Autobind {
@@ -76,7 +90,18 @@ input OuterInput {
     inner: InnerInput!
 }
 
-scalar ThirdParty @goModel(model:"followschema.ThirdParty")
+input OmittableInput {
+    id: ID @goField(omittable: true)
+    bool: Boolean @goField(omittable: true)
+    str: String @goField(omittable: true)
+    int: Int @goField(omittable: true)
+    time: Time @goField(omittable: true)
+    enum: Status @goField(omittable: true)
+    scalar: ThirdParty @goField(omittable: true)
+    object: OuterInput @goField(omittable: true)
+}
+
+scalar ThirdParty @goModel(model: "followschema.ThirdParty")
 
 type OuterObject {
     inner: InnerObject!
@@ -90,7 +115,7 @@ type ForcedResolver {
     field: Circle @goField(forceResolver: true)
 }
 
-type EmbeddedPointer @goModel(model:"followschema.EmbeddedPointerModel") {
+type EmbeddedPointer @goModel(model: "followschema.EmbeddedPointerModel") {
     ID: String
     Title: String
 }

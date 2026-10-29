@@ -2,17 +2,23 @@ package followschema
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestNullBubbling(t *testing.T) {
 	resolvers := &Stub{}
 	resolvers.QueryResolver.Valid = func(ctx context.Context) (s string, e error) {
 		return "Ok", nil
+	}
+	resolvers.QueryResolver.Invalid = func(ctx context.Context) (s string, e error) {
+		return "Ok", errors.New("ERROR")
 	}
 	resolvers.QueryResolver.Errors = func(ctx context.Context) (errors *Errors, e error) {
 		return &Errors{}, nil
@@ -21,13 +27,15 @@ func TestNullBubbling(t *testing.T) {
 		return &Error{ID: "E1234"}, nil
 	}
 	resolvers.QueryResolver.ErrorBubbleList = func(ctx context.Context) (i []*Error, e error) {
-		return []*Error{nil}, nil
+		return []*Error{{ID: "1"}, nil, nil}, nil
 	}
 	resolvers.QueryResolver.ErrorList = func(ctx context.Context) (i []*Error, e error) {
 		return []*Error{nil}, nil
 	}
 
-	c := client.New(handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: resolvers})))
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
+	c := client.New(srv)
 
 	t.Run("when function errors on non required field", func(t *testing.T) {
 		var resp struct {
@@ -39,7 +47,11 @@ func TestNullBubbling(t *testing.T) {
 		}
 		err := c.Post(`query { valid, errorBubble { id, errorOnNonRequiredField } }`, &resp)
 
-		require.EqualError(t, err, `[{"message":"boom","path":["errorBubble","errorOnNonRequiredField"]}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"boom","path":["errorBubble","errorOnNonRequiredField"],"locations":[{"line":1,"column":34}]}]`,
+		)
 		require.Equal(t, "E1234", resp.ErrorBubble.Id)
 		require.Nil(t, resp.ErrorBubble.ErrorOnNonRequiredField)
 		require.Equal(t, "Ok", resp.Valid)
@@ -54,7 +66,11 @@ func TestNullBubbling(t *testing.T) {
 		}
 		err := c.Post(`query { valid, errorBubble { id, errorOnRequiredField } }`, &resp)
 
-		require.EqualError(t, err, `[{"message":"boom","path":["errorBubble","errorOnRequiredField"]}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"boom","path":["errorBubble","errorOnRequiredField"],"locations":[{"line":1,"column":34}]}]`,
+		)
 		require.Nil(t, resp.ErrorBubble)
 		require.Equal(t, "Ok", resp.Valid)
 	})
@@ -68,7 +84,12 @@ func TestNullBubbling(t *testing.T) {
 		}
 		err := c.Post(`query { valid, errorBubble { id, nilOnRequiredField } }`, &resp)
 
-		require.EqualError(t, err, `[{"message":"must not be null","path":["errorBubble","nilOnRequiredField"]}]`)
+		require.EqualError(
+			t,
+			err,
+			`[{"message":"cannot return null for non-null field Error.nilOnRequiredField (String!): `+
+				`the model method returned nil","path":["errorBubble","nilOnRequiredField"]}]`,
+		)
 		require.Nil(t, resp.ErrorBubble)
 		require.Equal(t, "Ok", resp.Valid)
 	})
@@ -80,8 +101,8 @@ func TestNullBubbling(t *testing.T) {
 		}
 		err := c.Post(`query { valid, errorList { id } }`, &resp)
 
-		require.Nil(t, err)
-		require.Equal(t, len(resp.ErrorList), 1)
+		require.NoError(t, err)
+		require.Len(t, resp.ErrorList, 1)
 		require.Nil(t, resp.ErrorList[0])
 		require.Equal(t, "Ok", resp.Valid)
 	})
@@ -93,7 +114,18 @@ func TestNullBubbling(t *testing.T) {
 		}
 		err := c.Post(`query { valid, errorBubbleList { id } }`, &resp)
 
-		require.EqualError(t, err, `[{"message":"must not be null","path":["errorBubbleList",0]}]`)
+		require.Contains(
+			t,
+			err.Error(),
+			`{"message":"cannot return null for non-null element of field Query.errorBubbleList `+
+				`(Error!): the list element was nil","path":["errorBubbleList",2]}`,
+		)
+		require.Contains(
+			t,
+			err.Error(),
+			`{"message":"cannot return null for non-null element of field Query.errorBubbleList `+
+				`(Error!): the list element was nil","path":["errorBubbleList",1]}`,
+		)
 		require.Nil(t, resp.ErrorBubbleList)
 		require.Equal(t, "Ok", resp.Valid)
 	})
@@ -108,12 +140,12 @@ func TestNullBubbling(t *testing.T) {
 		}
 
 		err := c.Post(`query { nullableArg(arg: null) }`, &resp)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		require.Equal(t, "Ok", *resp.NullableArg)
 	})
 
 	t.Run("concurrent null detection", func(t *testing.T) {
-		var resp interface{}
+		var resp any
 		resolvers.ErrorsResolver.A = func(ctx context.Context, obj *Errors) (i *Error, e error) { return nil, nil }
 		resolvers.ErrorsResolver.B = func(ctx context.Context, obj *Errors) (i *Error, e error) { return nil, nil }
 		resolvers.ErrorsResolver.C = func(ctx context.Context, obj *Errors) (i *Error, e error) { return nil, nil }
@@ -129,6 +161,19 @@ func TestNullBubbling(t *testing.T) {
 		} }`, &resp)
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "must not be null")
+		require.Contains(
+			t,
+			err.Error(),
+			"cannot return null for non-null field Errors.",
+		)
+	})
+
+	t.Run("when non-nullable field returns content while error occurred", func(t *testing.T) {
+		var resp any
+		err := c.Post(`query { invalid }`, &resp)
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `"message":"ERROR"`)
+		require.Contains(t, err.Error(), `"path":["invalid"]`)
 	})
 }

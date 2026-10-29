@@ -16,7 +16,7 @@ func TestResolverConfig(t *testing.T) {
 			require.NoError(t, p.Check())
 			require.NoError(t, p.Check())
 
-			require.Equal(t, p.Package, "config_test_data")
+			require.Equal(t, "config_test_data", p.Package)
 			require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 			require.Equal(t, "config_test_data", p.Pkg().Name())
@@ -33,7 +33,7 @@ func TestResolverConfig(t *testing.T) {
 			require.NoError(t, p.Check())
 			require.NoError(t, p.Check())
 
-			require.Equal(t, p.Package, "wololo")
+			require.Equal(t, "wololo", p.Package)
 			require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 			require.Equal(t, "wololo", p.Pkg().Name())
@@ -49,27 +49,35 @@ func TestResolverConfig(t *testing.T) {
 
 			require.EqualError(t, p.Check(), "filename must be specified with layout=single-file")
 
-			require.Equal(t, "", p.Package)
-			require.Equal(t, "", p.ImportPath())
+			require.Empty(t, p.Package)
+			require.Empty(t, p.ImportPath())
 
 			require.Nil(t, p.Pkg())
 
-			require.Equal(t, "", p.Filename)
-			require.Equal(t, "", p.Dir())
+			require.Empty(t, p.Filename)
+			require.Empty(t, p.Dir())
 		})
 
 		t.Run("when given invalid filename", func(t *testing.T) {
 			p := ResolverConfig{Filename: "wololo.sql"}
 			require.True(t, p.IsDefined())
 
-			require.EqualError(t, p.Check(), "filename should be path to a go source file with layout=single-file")
+			require.EqualError(
+				t,
+				p.Check(),
+				"filename should be path to a go source file with layout=single-file",
+			)
 		})
 
 		t.Run("when package includes a filename", func(t *testing.T) {
 			p := ResolverConfig{Filename: "foo.go", Package: "foo/foo.go"}
 			require.True(t, p.IsDefined())
 
-			require.EqualError(t, p.Check(), "package should be the output package name only, do not include the output filename")
+			require.EqualError(
+				t,
+				p.Check(),
+				"package should be the output package name only, do not include the output filename",
+			)
 		})
 	})
 
@@ -81,7 +89,7 @@ func TestResolverConfig(t *testing.T) {
 			require.NoError(t, p.Check())
 			require.NoError(t, p.Check())
 
-			require.Equal(t, p.Package, "config_test_data")
+			require.Equal(t, "config_test_data", p.Package)
 			require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 			require.Equal(t, "config_test_data", p.Pkg().Name())
@@ -98,7 +106,7 @@ func TestResolverConfig(t *testing.T) {
 			require.NoError(t, p.Check())
 			require.NoError(t, p.Check())
 
-			require.Equal(t, p.Package, "wololo")
+			require.Equal(t, "wololo", p.Package)
 			require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 			require.Equal(t, "wololo", p.Pkg().Name())
@@ -109,13 +117,17 @@ func TestResolverConfig(t *testing.T) {
 		})
 
 		t.Run("when given a filename", func(t *testing.T) {
-			p := ResolverConfig{Layout: LayoutFollowSchema, DirName: "testdata", Filename: "testdata/asdf.go"}
+			p := ResolverConfig{
+				Layout:   LayoutFollowSchema,
+				DirName:  "testdata",
+				Filename: "testdata/asdf.go",
+			}
 			require.True(t, p.IsDefined())
 
 			require.NoError(t, p.Check())
 			require.NoError(t, p.Check())
 
-			require.Equal(t, p.Package, "config_test_data")
+			require.Equal(t, "config_test_data", p.Package)
 			require.Equal(t, "github.com/99designs/gqlgen/codegen/config/testdata", p.ImportPath())
 
 			require.Equal(t, "config_test_data", p.Pkg().Name())
@@ -131,13 +143,13 @@ func TestResolverConfig(t *testing.T) {
 
 			require.EqualError(t, p.Check(), "dirname must be specified with layout=follow-schema")
 
-			require.Equal(t, "", p.Package)
-			require.Equal(t, "", p.ImportPath())
+			require.Empty(t, p.Package)
+			require.Empty(t, p.ImportPath())
 
 			require.Nil(t, p.Pkg())
 
-			require.Equal(t, "", p.Filename)
-			require.Equal(t, "", p.Dir())
+			require.Empty(t, p.Filename)
+			require.Empty(t, p.Dir())
 		})
 	})
 
@@ -145,6 +157,10 @@ func TestResolverConfig(t *testing.T) {
 		p := ResolverConfig{Layout: "pies", Filename: "asdf.go"}
 		require.True(t, p.IsDefined())
 
-		require.EqualError(t, p.Check(), "invalid layout pies. must be single-file or follow-schema")
+		require.EqualError(
+			t,
+			p.Check(),
+			"invalid layout pies. must be single-file or follow-schema",
+		)
 	})
 }

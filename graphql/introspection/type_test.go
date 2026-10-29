@@ -28,7 +28,7 @@ func TestType(t *testing.T) {
 	})
 
 	t.Run("description", func(t *testing.T) {
-		require.Equal(t, "test description", schemaType.Description())
+		require.Equal(t, "test description", *schemaType.Description())
 	})
 
 	t.Run("fields", func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestType(t *testing.T) {
 		require.Equal(t, "test", fields[0].Name)
 	})
 
-	t.Run("fields includeDepricated", func(t *testing.T) {
+	t.Run("fields includeDeprecated", func(t *testing.T) {
 		fields := schemaType.Fields(true)
 		require.Len(t, fields, 2)
 		require.Equal(t, "test", fields[0].Name)

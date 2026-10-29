@@ -5,9 +5,17 @@ exec:
 federation:
   filename: testdata/entityresolver/generated/federation.go
 model:
-  filename: testdata/entityresolver/generated/models.go
+  filename: testdata/entityresolver/generated/model/models.go
+  package: model
 resolver:
   filename: testdata/entityresolver/resolver.go
   layout: follow-schema
   dir: testdata/entityresolver
   package: entityresolver
+models:
+  CustomIDEntity:
+    model: github.com/99designs/gqlgen/plugin/federation/testdata/entityresolver/custommodel.Entity
+  MultiCustomIDEntity:
+    model: github.com/99designs/gqlgen/plugin/federation/testdata/entityresolver/custommodel.MultiEntity
+  CustomIDOwner:
+    model: github.com/99designs/gqlgen/plugin/federation/testdata/entityresolver/custommodel.Owner

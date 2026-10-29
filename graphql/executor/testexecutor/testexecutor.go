@@ -4,21 +4,23 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql"
-	"github.com/99designs/gqlgen/graphql/executor"
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
+
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/executor"
 )
 
 type MockResponse struct {
 	Name string `json:"name"`
 }
 
-func (mr *MockResponse) UnmarshalGQL(v interface{}) error {
+func (mr *MockResponse) UnmarshalGQL(v any) error {
 	return nil
 }
 
@@ -34,8 +36,9 @@ func (mr *MockResponse) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, ba)
 }
 
-// New provides a server for use in tests that isn't relying on generated code. It isnt a perfect reproduction of
-// a generated server, but it aims to be good enough to test the handler package without relying on codegen.
+// New provides a server for use in tests that isn't relying on generated code. It isnt a perfect
+// reproduction of a generated server, but it aims to be good enough to test the handler package
+// without relying on codegen.
 func New() *TestExecutor {
 	next := make(chan struct{})
 
@@ -43,6 +46,10 @@ func New() *TestExecutor {
     type Query {
       name: String!
       find(id: Int!): String!
+      user: User!
+    }
+    type User {
+      id: ID!
     }
     type Mutation {
       name: String!
@@ -58,8 +65,8 @@ func New() *TestExecutor {
 
 	exec.schema = &graphql.ExecutableSchemaMock{
 		ExecFunc: func(ctx context.Context) graphql.ResponseHandler {
-			rc := graphql.GetOperationContext(ctx)
-			switch rc.Operation.Operation {
+			opCtx := graphql.GetOperationContext(ctx)
+			switch opCtx.Operation.Operation {
 			case ast.Query:
 				ran := false
 				return func(ctx context.Context) *graphql.Response {
@@ -78,17 +85,20 @@ func New() *TestExecutor {
 							},
 						},
 					})
-					data := graphql.GetOperationContext(ctx).RootResolverMiddleware(ctx, func(ctx context.Context) graphql.Marshaler {
-						res, err := graphql.GetOperationContext(ctx).ResolverMiddleware(ctx, func(ctx context.Context) (interface{}, error) {
-							// return &graphql.Response{Data: []byte(`{"name":"test"}`)}, nil
-							return &MockResponse{Name: "test"}, nil
-						})
-						if err != nil {
-							panic(err)
-						}
+					data := graphql.GetOperationContext(ctx).
+						RootResolverMiddleware(ctx, func(ctx context.Context) graphql.Marshaler {
+							res, err := graphql.GetOperationContext(ctx).
+								ResolverMiddleware(ctx, func(ctx context.Context) (any, error) {
+									// return &graphql.Response{Data: []byte(`{"name":"test"}`)},
+									// nil
+									return &MockResponse{Name: "test"}, nil
+								})
+							if err != nil {
+								panic(err)
+							}
 
-						return res.(*MockResponse)
-					})
+							return res.(*MockResponse)
+						})
 
 					var buf bytes.Buffer
 					data.MarshalGQL(&buf)
@@ -115,7 +125,7 @@ func New() *TestExecutor {
 		SchemaFunc: func() *ast.Schema {
 			return schema
 		},
-		ComplexityFunc: func(typeName string, fieldName string, childComplexity int, args map[string]interface{}) (i int, b bool) {
+		ComplexityFunc: func(ctx context.Context, typeName string, fieldName string, childComplexity int, args map[string]any) (i int, b bool) {
 			return exec.complexity, true
 		},
 	}
@@ -124,8 +134,9 @@ func New() *TestExecutor {
 	return exec
 }
 
-// NewError provides a server for use in resolver error tests that isn't relying on generated code. It isnt a perfect reproduction of
-// a generated server, but it aims to be good enough to test the handler package without relying on codegen.
+// NewError provides a server for use in resolver error tests that isn't relying on generated code.
+// It isnt a perfect reproduction of a generated server, but it aims to be good enough to test the
+// handler package without relying on codegen.
 func NewError() *TestExecutor {
 	next := make(chan struct{})
 
@@ -141,8 +152,8 @@ func NewError() *TestExecutor {
 
 	exec.schema = &graphql.ExecutableSchemaMock{
 		ExecFunc: func(ctx context.Context) graphql.ResponseHandler {
-			rc := graphql.GetOperationContext(ctx)
-			switch rc.Operation.Operation {
+			opCtx := graphql.GetOperationContext(ctx)
+			switch opCtx.Operation.Operation {
 			case ast.Query:
 				ran := false
 				return func(ctx context.Context) *graphql.Response {
@@ -151,7 +162,7 @@ func NewError() *TestExecutor {
 					}
 					ran = true
 
-					graphql.AddError(ctx, fmt.Errorf("resolver error"))
+					graphql.AddError(ctx, errors.New("resolver error"))
 
 					return &graphql.Response{
 						Data: []byte(`null`),
@@ -168,7 +179,7 @@ func NewError() *TestExecutor {
 		SchemaFunc: func() *ast.Schema {
 			return schema
 		},
-		ComplexityFunc: func(typeName string, fieldName string, childComplexity int, args map[string]interface{}) (i int, b bool) {
+		ComplexityFunc: func(ctx context.Context, typeName string, fieldName string, childComplexity int, args map[string]any) (i int, b bool) {
 			return exec.complexity, true
 		},
 	}

@@ -5,12 +5,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -27,6 +28,14 @@ func TestMiddleware(t *testing.T) {
 		return []*User{{ID: 1}}, nil
 	}
 
+	resolvers.UserResolver.Pets = func(ctx context.Context, obj *User, limit *int) ([]*Pet, error) {
+		return []*Pet{{ID: 10}}, nil
+	}
+
+	resolvers.PetResolver.Friends = func(ctx context.Context, obj *Pet, limit *int) ([]*Pet, error) {
+		return []*Pet{}, nil
+	}
+
 	resolvers.QueryResolver.ModelMethods = func(ctx context.Context) (methods *ModelMethods, e error) {
 		return &ModelMethods{}, nil
 	}
@@ -34,25 +43,45 @@ func TestMiddleware(t *testing.T) {
 	var mu sync.Mutex
 	areMethods := map[string]bool{}
 	areResolvers := map[string]bool{}
-	srv := handler.NewDefaultServer(
-		NewExecutableSchema(Config{Resolvers: resolvers}),
-	)
-	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res interface{}, err error) {
+	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolvers}))
+	srv.AddTransport(transport.POST{})
+	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res any, err error) {
 		path, _ := ctx.Value(ckey("path")).([]int)
 		return next(context.WithValue(ctx, ckey("path"), append(path, 1)))
 	})
 
-	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res interface{}, err error) {
+	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res any, err error) {
 		path, _ := ctx.Value(ckey("path")).([]int)
 		return next(context.WithValue(ctx, ckey("path"), append(path, 2)))
 	})
 
-	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res interface{}, err error) {
+	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res any, err error) {
 		fc := graphql.GetFieldContext(ctx)
 		mu.Lock()
 		areMethods[fc.Field.Name] = fc.IsMethod
 		areResolvers[fc.Field.Name] = fc.IsResolver
 		mu.Unlock()
+		return next(ctx)
+	})
+
+	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (res any, err error) {
+		fc := graphql.GetFieldContext(ctx)
+		if fc.Field.Name != "user" {
+			return next(ctx)
+		}
+		opCtx := graphql.GetOperationContext(ctx)
+		collected := graphql.CollectFields(opCtx, fc.Field.Selections, []string{"User"})
+		require.Len(t, collected, 3)
+		require.Equal(t, "pets", collected[2].Name)
+		child, err := fc.Child(ctx, collected[2])
+		require.NoError(t, err)
+		require.Equal(t, 2, *child.Args["limit"].(*int))
+		collected = graphql.CollectFields(opCtx, child.Field.Selections, []string{"Pet"})
+		require.Len(t, collected, 2)
+		require.Equal(t, "friends", collected[1].Name)
+		child, err = child.Child(ctx, collected[1])
+		require.NoError(t, err)
+		require.Equal(t, 10, *child.Args["limit"].(*int))
 		return next(ctx)
 	})
 
@@ -63,6 +92,12 @@ func TestMiddleware(t *testing.T) {
 			ID      int
 			Friends []struct {
 				ID int
+			}
+			Pets []struct {
+				ID      int
+				Friends []struct {
+					ID int
+				}
 			}
 		}
 		ModelMethods struct {
@@ -83,6 +118,12 @@ func TestMiddleware(t *testing.T) {
 			friends {
 				id
 			}
+			pets (limit: 2) {
+				id
+				friends(limit: 10) {
+					id
+				}
+			}
 		}
 		modelMethods {
 			noContext
@@ -91,6 +132,7 @@ func TestMiddleware(t *testing.T) {
 
 	assert.Equal(t, map[string]bool{
 		"user":         true,
+		"pets":         true,
 		"id":           false,
 		"friends":      true,
 		"modelMethods": true,
@@ -98,6 +140,7 @@ func TestMiddleware(t *testing.T) {
 	}, areMethods)
 	assert.Equal(t, map[string]bool{
 		"user":         true,
+		"pets":         true,
 		"id":           false,
 		"friends":      true,
 		"modelMethods": true,
